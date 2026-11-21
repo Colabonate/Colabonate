@@ -1,0 +1,22 @@
+[package]
+name = "icp_workspace_canister"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+candid = "0.10.34"
+ic-cdk = "0.20.2"
+ic-cdk-management-canister = "0.1.1"
+ic-stable-structures = "0.7.2"
+bitcoin = "0.32"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1"
+# NIP-44 v2 decrypt (FU-434 Slice B) — pure RustCrypto, wasm32-safe.
+chacha20 = "0.9"
+hkdf = "0.12"
+sha2 = "0.10"
+hmac = "0.12"
+base64 = "0.22"

@@ -1,0 +1,28 @@
+[package]
+name = "icp_escrow_canister"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# ADR-364 D2: exactly one Bitcoin deployment target per build (mutual exclusion enforced by a
+# compile_error guard in lib.rs). `bitcoin-regtest` is the default; opt into a real network with
+# `--no-default-features --features bitcoin-testnet` (Phase T) or `--features bitcoin-mainnet`
+# (Phase M, gated on FU-253-H).
+default = ["bitcoin-regtest"]
+bitcoin-regtest = []
+bitcoin-testnet = []
+bitcoin-mainnet = []
+
+[dependencies]
+candid = "0.10.34"
+ic-cdk = "0.20.2"
+ic-cdk-management-canister = "0.1.1"
+ic-cdk-bitcoin-canister = "0.2.0"
+ic-stable-structures = "0.7.2"
+ic-certified-map = "0.4"
+ciborium = "0.2"
+bitcoin = "0.32"
+serde = "1.0.229"

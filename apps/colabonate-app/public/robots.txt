@@ -1,0 +1,45 @@
+# Colabonate — robots.txt
+#
+# The public marketing and content pages are open to every crawler, including
+# AI/LLM crawlers (GPTBot, OAI-SearchBot, ClaudeBot, anthropic-ai,
+# PerplexityBot, Google-Extended, Applebot-Extended, meta-externalagent, CCBot).
+# There are intentionally no per-bot blocks: any bot without its own group
+# falls back to the `User-agent: *` rules below, so AI crawlers are explicitly
+# covered by the same allow/disallow set as classic search engines.
+#
+# Auth-protected app areas are excluded from indexing. /buy, /coop, /search and
+# /tasks are the ADR-303 D9-D12 public read tier (guest-browsable, listed in
+# scripts/seo-routes.mjs and sitemap.xml) — deliberately allowed here, not
+# blocked (fixed 2026-09-19: seo-routes.mjs already indexed them, this file
+# had not been updated to match — see ADR-287 addendum).
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin
+Disallow: /account
+Disallow: /wallet
+Disallow: /messages
+Disallow: /settings
+Disallow: /notifications
+Disallow: /onboarding
+Disallow: /login
+Disallow: /sell
+Disallow: /dao
+Disallow: /tickets
+Disallow: /offers
+Disallow: /services
+Disallow: /u/
+Disallow: /c/
+Disallow: /council
+Disallow: /partners
+Disallow: /statistics
+Disallow: /feedback
+Disallow: /media
+
+# See /llms.txt for a curated, agent-friendly summary of Colabonate's
+# features and its MCP agent-connect endpoint (/mcp via /ai/connect).
+# Installable Agent Skill + discovery index: /.well-known/agent-skills/index.json
+# See /agents.md for operating instructions for AI agents (what is public,
+# how to connect over MCP, what an agent must not do).
+Sitemap: https://colabonate.app/sitemap.xml

@@ -1,0 +1,12 @@
+{
+  "name": "@ds/tokens",
+  "version": "0.0.1",
+  "license": "MIT",
+  "private": true,
+  "description": "Design Tokens – Source of Truth for CSS custom properties",
+  "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "build": "node scripts/build.js"
+  }
+}

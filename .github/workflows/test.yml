@@ -1,0 +1,335 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: colabonate_test
+          POSTGRES_USER: colabonate
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd="pg_isready -U colabonate -d colabonate_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 6379:6379
+
+      meilisearch:
+        image: getmeili/meilisearch:v1.11
+        env:
+          MEILI_MASTER_KEY: test-master-key-16b
+          MEILI_ENV: production
+        options: >-
+          --health-cmd="curl -f http://localhost:7700/health"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 7700:7700
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: npx pnpm install --frozen-lockfile
+
+      # Generate design-system tokens (tokens.css is gitignored). Without this
+      # the Playwright webServer's Vite fails: "Can't resolve
+      # '@ds/tokens/css/tokens.css'" (imported by apps/colabonate-app/src/index.css).
+      # Mirrors mobile-build.yml and the app Dockerfile.
+      - name: Generate design-system tokens
+        run: npx pnpm tokens:build
+
+      - name: Generate Prisma client
+        run: npx pnpm prisma generate --schema prisma/schema.prisma
+
+      - name: Setup test database
+        run: |
+          npx pnpm prisma db push --force-reset --schema prisma/schema.prisma
+          npx pnpm --filter server exec tsx ../../prisma/seed.ts
+        env:
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate_test
+
+      - name: Run Vitest
+        run: npx pnpm test
+        env:
+          PAYMENT_PROVIDER: mock
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate_test
+
+      - name: Build server
+        run: npx pnpm --filter=server build
+        env:
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate_test
+
+      # FU-640 root fix: `playwright` and `@playwright/test` are pinned to the
+      # same exact version (1.62.0) in the root package.json, so no in-CI
+      # alignment step is needed before installing the browser. The former
+      # `pnpm add -wD playwright@1.62.0` safety net was removed 2026-09-24 — it
+      # was a no-op and would have silently downgraded `playwright` if only
+      # `@playwright/test` were ever bumped.
+      - name: Install Playwright browsers
+        run: npx pnpm playwright:install chromium
+
+      - name: Run Playwright E2E (smoke gate + API contract)
+        # ADR-377 D5: PRs are gated on the deterministic core — @smoke UI
+        # journeys (desktop project) + @api contract smokes. The full suite
+        # (dock physics, guide nav, mobile project) runs nightly in
+        # nightly-tests.yml so a slow/flaky deep test never blocks a fix
+        # while the product is live.
+        run: |
+          npx pnpm test:smoke
+          npx pnpm test:api
+        env:
+          PAYMENT_PROVIDER: mock
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate_test
+          PLAYWRIGHT_BASE_URL: http://localhost:5173
+          PLAYWRIGHT_SERVER_URL: http://localhost:4001
+          REDIS_URL: redis://localhost:6379
+          MEILISEARCH_URL: http://localhost:7700
+          MEILISEARCH_MASTER_KEY: test-master-key-16b
+          SEARCH_BACKEND: meilisearch
+          # E2E helpers mint sessions via POST /api/auth/demo, which is gated on
+          # DEMO_LOGIN_ENABLED (FU-221-C). Without it the tokens are undefined.
+          DEMO_LOGIN_ENABLED: '1'
+
+      - name: Upload Playwright Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          # Artifact storage quota is shared org-wide; keep the window short.
+          retention-days: 3
+
+      - name: Upload Coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage/
+          retention-days: 3
+          if-no-files-found: ignore
+
+  load-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [test]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: colabonate
+          POSTGRES_USER: colabonate
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd="pg_isready -U colabonate"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 6379:6379
+
+      meilisearch:
+        image: getmeili/meilisearch:v1.11
+        env:
+          MEILI_MASTER_KEY: test-master-key-16b
+          MEILI_ENV: production
+        options: >-
+          --health-cmd="curl -f http://localhost:7700/health"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 7700:7700
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: npx pnpm install --frozen-lockfile
+
+      - name: Install k6
+        run: |
+          curl -sL https://github.com/grafana/k6/releases/download/v0.55.0/k6-v0.55.0-linux-amd64.tar.gz | tar xz
+          sudo mv k6-v0.55.0-linux-amd64/k6 /usr/local/bin/
+          rm -rf k6-v0.55.0-linux-amd64
+
+      - name: Generate Prisma client
+        run: npx pnpm prisma generate --schema prisma/schema.prisma
+
+      - name: Run Prisma migrations
+        run: npx pnpm prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate
+          DIRECT_URL: postgresql://colabonate:test@localhost:5432/colabonate
+
+      - name: Build server
+        run: npx pnpm --filter=server build
+        env:
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate
+          DIRECT_URL: postgresql://colabonate:test@localhost:5432/colabonate
+          REDIS_URL: redis://localhost:6379
+          MEILISEARCH_URL: http://localhost:7700
+          MEILISEARCH_MASTER_KEY: test-key
+          SEARCH_BACKEND: meilisearch
+          CACHE_ENABLED: true
+          LOG_LEVEL: error
+          NODE_ENV: production
+
+      - name: Start server in background
+        run: |
+          npx pnpm --filter=server start &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          sleep 5
+          curl -f http://localhost:4001/health || exit 1
+        env:
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate
+          DIRECT_URL: postgresql://colabonate:test@localhost:5432/colabonate
+          REDIS_URL: redis://localhost:6379
+          MEILISEARCH_URL: http://localhost:7700
+          MEILISEARCH_MASTER_KEY: test-key
+          SEARCH_BACKEND: meilisearch
+          CACHE_ENABLED: true
+          LOG_LEVEL: error
+          NODE_ENV: production
+          PORT: 4001
+          PAYMENT_PROVIDER: mock
+
+      - name: Run k6 load test
+        run: |
+          # k6 v0.55 needs this flag for native .ts support (default only from
+          # v0.57+ — see ADR-252 D4 finding, apps/server/scripts/load-test/escrow-concurrency-test.ts).
+          k6 run \
+            --compatibility-mode=experimental_enhanced \
+            --env BASE_URL=http://localhost:4001 \
+            apps/server/scripts/load-test/search-test.ts
+        env:
+          BASE_URL: http://localhost:4001
+
+  escrow-load-test:
+    # ADR-252 D4 / FU-192-G: money-flow load test (hold-invoice creation +
+    # concurrent payment-webhook settlement). Separate job from `load-test`
+    # because that job runs the server with NODE_ENV=production, which hard-
+    # blocks POST /api/auth/demo (auth-session.ts:49) — this test needs it to
+    # provision buyer sessions without a real Lightning wallet per buyer.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [test]
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: colabonate_escrow_loadtest
+          POSTGRES_USER: colabonate
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd="pg_isready -U colabonate -d colabonate_escrow_loadtest"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        run: npx pnpm install --frozen-lockfile
+
+      - name: Install k6
+        run: |
+          curl -sL https://github.com/grafana/k6/releases/download/v0.55.0/k6-v0.55.0-linux-amd64.tar.gz | tar xz
+          sudo mv k6-v0.55.0-linux-amd64/k6 /usr/local/bin/
+          rm -rf k6-v0.55.0-linux-amd64
+
+      - name: Generate Prisma client
+        run: npx pnpm prisma generate --schema prisma/schema.prisma
+
+      - name: Setup test database
+        run: npx pnpm prisma db push --force-reset --schema prisma/schema.prisma
+        env:
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate_escrow_loadtest
+
+      - name: Start server in background
+        run: |
+          npx pnpm --filter server dev &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          sleep 6
+          curl -f http://localhost:4001/health || exit 1
+        env:
+          DATABASE_URL: postgresql://colabonate:test@localhost:5432/colabonate_escrow_loadtest
+          PAYMENT_PROVIDER: mock
+          DEMO_LOGIN_ENABLED: '1'
+          WIPE_SECRET: ci-escrow-loadtest-secret
+          PORT: 4001
+          APP_PORT: 4001
+          # ADR-253 FU-253-J: useEscrow:true offer creation is rejected unless
+          # explicitly enabled — this job intentionally opts in to keep
+          # exercising the legacy custodial hold-invoice path (FU-253-K).
+          ESCROW_ENABLED: '1'
+
+      - name: Run k6 escrow concurrency load test
+        run: |
+          k6 run \
+            --compatibility-mode=experimental_enhanced \
+            --env BASE_URL=http://localhost:4001 \
+            apps/server/scripts/load-test/escrow-concurrency-test.ts
+        env:
+          BASE_URL: http://localhost:4001

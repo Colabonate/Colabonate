@@ -1,0 +1,225 @@
+/* ============================================================
+ * Typography Base Styles – Design System
+ * Binds h1–h6 HTML elements to typography tokens (light variant).
+ * Import AFTER tokens.css so variables are available.
+ *
+ * letter-spacing: h1+h2 use Figma tokens; h3–h6 follow the same
+ * ~-1% of font-size rule derived from the token pattern.
+ * ============================================================ */
+
+/* ── Font Families ──────────────────────────────────────────────────────── */
+body {
+  font-family: var(--typography-fontfamily-inter);
+}
+
+code, pre, kbd, samp {
+  font-family: var(--typography-fontfamily-mono);
+}
+
+/* ── h1 ─────────────────────────────────────────────────────────────────── */
+h1 {
+  font-size:      var(--typography-heading-h1-mobile-light-fontsize);
+  font-weight:    var(--typography-heading-h1-mobile-light-fontweight);
+  line-height:    var(--typography-heading-h1-mobile-light-lineheight);
+  letter-spacing: var(--typography-heading-h1-mobile-light-letterspacing);
+  color:          var(--theme-text);
+}
+
+@media (min-width: 600px) {
+  h1 {
+    font-size:   var(--typography-heading-h1-tablet-light-fontsize);
+    font-weight: var(--typography-heading-h1-tablet-light-fontweight);
+    line-height: var(--typography-heading-h1-tablet-light-lineheight);
+  }
+}
+
+@media (min-width: 900px) {
+  h1 {
+    font-size:   var(--typography-heading-h1-desktop-light-fontsize);
+    font-weight: var(--typography-heading-h1-desktop-light-fontweight);
+    line-height: var(--typography-heading-h1-desktop-light-lineheight);
+  }
+}
+
+/* ── h2 ─────────────────────────────────────────────────────────────────── */
+h2 {
+  font-size:      var(--typography-heading-h2-mobile-light-fontsize);
+  font-weight:    var(--typography-heading-h2-mobile-light-fontweight);
+  line-height:    var(--typography-heading-h2-mobile-light-lineheight);
+  letter-spacing: var(--typography-heading-h2-mobile-light-letterspacing);
+  color:          var(--theme-text);
+}
+
+@media (min-width: 600px) {
+  h2 {
+    font-size:   var(--typography-heading-h2-tablet-light-fontsize);
+    font-weight: var(--typography-heading-h2-tablet-light-fontweight);
+    line-height: var(--typography-heading-h2-tablet-light-lineheight);
+  }
+}
+
+@media (min-width: 900px) {
+  h2 {
+    font-size:   var(--typography-heading-h2-desktop-light-fontsize);
+    font-weight: var(--typography-heading-h2-desktop-light-fontweight);
+    line-height: var(--typography-heading-h2-desktop-light-lineheight);
+  }
+}
+
+/* ── h3 ─────────────────────────────────────────────────────────────────── */
+h3 {
+  font-size:      var(--typography-heading-h3-mobile-light-fontsize);
+  font-weight:    var(--typography-heading-h3-mobile-light-fontweight);
+  line-height:    var(--typography-heading-h3-mobile-light-lineheight);
+  letter-spacing: -0.26px; /* ~-1% of 26px, consistent with h1/h2 token pattern */
+  color:          var(--theme-text);
+}
+
+@media (min-width: 600px) {
+  h3 {
+    font-size:   var(--typography-heading-h3-tablet-light-fontsize);
+    font-weight: var(--typography-heading-h3-tablet-light-fontweight);
+    line-height: var(--typography-heading-h3-tablet-light-lineheight);
+  }
+}
+
+@media (min-width: 900px) {
+  h3 {
+    font-size:   var(--typography-heading-h3-desktop-light-fontsize);
+    font-weight: var(--typography-heading-h3-desktop-light-fontweight);
+    line-height: var(--typography-heading-h3-desktop-light-lineheight);
+  }
+}
+
+/* ── h4 ─────────────────────────────────────────────────────────────────── */
+h4 {
+  font-size:      var(--typography-heading-h4-mobile-light-fontsize);
+  font-weight:    var(--typography-heading-h4-mobile-light-fontweight);
+  line-height:    var(--typography-heading-h4-mobile-light-lineheight);
+  letter-spacing: -0.23px; /* ~-1% of 23px */
+  color:          var(--theme-text);
+}
+
+@media (min-width: 600px) {
+  h4 {
+    font-size:   var(--typography-heading-h4-tablet-light-fontsize);
+    font-weight: var(--typography-heading-h4-tablet-light-fontweight);
+    line-height: var(--typography-heading-h4-tablet-light-lineheight);
+  }
+}
+
+@media (min-width: 900px) {
+  h4 {
+    font-size:   var(--typography-heading-h4-desktop-light-fontsize);
+    font-weight: var(--typography-heading-h4-desktop-light-fontweight);
+    line-height: var(--typography-heading-h4-desktop-light-lineheight);
+  }
+}
+
+/* ── h5 ─────────────────────────────────────────────────────────────────── */
+h5 {
+  font-size:      var(--typography-heading-h5-mobile-light-fontsize);
+  font-weight:    var(--typography-heading-h5-mobile-light-fontweight);
+  line-height:    var(--typography-heading-h5-mobile-light-lineheight);
+  letter-spacing: -0.20px; /* ~-1% of 20px */
+  color:          var(--theme-text);
+}
+
+@media (min-width: 600px) {
+  h5 {
+    font-size:   var(--typography-heading-h5-tablet-light-fontsize);
+    font-weight: var(--typography-heading-h5-tablet-light-fontweight);
+    line-height: var(--typography-heading-h5-tablet-light-lineheight);
+  }
+}
+
+@media (min-width: 900px) {
+  h5 {
+    font-size:   var(--typography-heading-h5-desktop-light-fontsize);
+    font-weight: var(--typography-heading-h5-desktop-light-fontweight);
+    line-height: var(--typography-heading-h5-desktop-light-lineheight);
+  }
+}
+
+/* ── h6 ─────────────────────────────────────────────────────────────────── */
+h6 {
+  font-size:      var(--typography-heading-h6-mobile-light-fontsize);
+  font-weight:    var(--typography-heading-h6-mobile-light-fontweight);
+  line-height:    var(--typography-heading-h6-mobile-light-lineheight);
+  letter-spacing: -0.18px; /* ~-1% of 18px */
+  color:          var(--theme-text);
+}
+
+@media (min-width: 600px) {
+  h6 {
+    font-size:   var(--typography-heading-h6-tablet-light-fontsize);
+    font-weight: var(--typography-heading-h6-tablet-light-fontweight);
+    line-height: var(--typography-heading-h6-tablet-light-lineheight);
+  }
+}
+
+@media (min-width: 900px) {
+  h6 {
+    font-size:   var(--typography-heading-h6-desktop-light-fontsize);
+    font-weight: var(--typography-heading-h6-desktop-light-fontweight);
+    line-height: var(--typography-heading-h6-desktop-light-lineheight);
+  }
+}
+
+/* ── Default heading → text spacing (app-wide) ──────────────────────────
+ * A sensible default gap between a heading and the content that follows,
+ * for h1–h6 AND ARIA-only headings (role="heading", used where a real
+ * h1–h6 tag would collide with the rules above — see GenerateNostrKey.tsx).
+ * Wrapped in Tailwind's own `base` layer (populated by `@import
+ * "tailwindcss"` in index.css) so it stays a LOWER priority than any
+ * `mb-*`/`margin-*` Tailwind utility class in `@layer utilities`: pages
+ * that already set their own heading margin keep doing so unchanged, this
+ * only fills in the gap where nothing else does.
+ * --------------------------------------------------------------- */
+@layer base {
+  h1 { margin-bottom: var(--spacing-32); }
+  h2 { margin-bottom: var(--spacing-24); }
+  h3 { margin-bottom: var(--spacing-24); }
+  h4 { margin-bottom: var(--spacing-16); }
+  h5 { margin-bottom: var(--spacing-16); }
+  h6 { margin-bottom: var(--spacing-16); }
+
+  [role="heading"][aria-level="1"] { margin-bottom: var(--spacing-32); }
+  [role="heading"][aria-level="2"] { margin-bottom: var(--spacing-24); }
+  [role="heading"][aria-level="3"] { margin-bottom: var(--spacing-24); }
+  [role="heading"]:not([aria-level="1"], [aria-level="2"], [aria-level="3"]) {
+    margin-bottom: var(--spacing-16);
+  }
+}
+
+/* ── Prose / Rich Text ────────────────────────────────────────────────────
+ * Scoped vertical rhythm for long-form text blocks (help articles, legal
+ * pages, about pages). Headings outside .prose already get the `@layer
+ * base` default above; this block additionally gives paragraphs their own
+ * rhythm (`p { margin-bottom }`, not covered by the base default) and is
+ * left unlayered so its heading values stay authoritative over the base
+ * default inside long-form content, per normal CSS cascade-layer rules.
+ * --------------------------------------------------------------- */
+.prose,
+.rich-text {
+  /* Paragraphs: only rhythm and readable line-height.
+     Font-size and color are left to the consuming component so existing
+     utilities (e.g. text-sm, text-muted) keep working. */
+  p {
+    line-height: 1.6;
+    margin-bottom: var(--spacing-16);
+  }
+
+  /* Headings */
+  h1 { margin-bottom: var(--spacing-32); }
+  h2 { margin-bottom: var(--spacing-24); }
+  h3 { margin-bottom: var(--spacing-24); }
+  h4 { margin-bottom: var(--spacing-16); }
+  h5 { margin-bottom: var(--spacing-16); }
+  h6 { margin-bottom: var(--spacing-16); }
+
+  /* Avoid trailing whitespace at the end of a prose block */
+  > *:last-child {
+    margin-bottom: 0;
+  }
+}

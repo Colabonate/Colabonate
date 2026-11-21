@@ -1,0 +1,19 @@
+{
+  "name": "@col/agent-persona",
+  "version": "0.0.1",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/js-yaml": "^4.0.9"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "zod": "^3.24.4"
+  }
+}

@@ -1,0 +1,521 @@
+{
+  "version": "3.0.0",
+  "standard": "UNSPSC",
+  "standardVersion": "26.0801",
+  "maxLevel": 3,
+  "supersedes": "categories-v1.json",
+  "categories": [
+    {
+      "id": "goods",
+      "slug": "goods",
+      "nameKey": "goods",
+      "unspscCode": "51000000",
+      "name": "Goods",
+      "offerType": "PRODUCT",
+      "level": 1,
+      "color": "info",
+      "subcategories": [
+        {
+          "id": "electronics",
+          "slug": "goods/electronics",
+          "nameKey": "goods.electronics",
+          "unspscCode": "43210000",
+          "name": "Electronics",
+          "level": 2,
+          "subcategories": [
+            { "id": "smartphones", "slug": "goods/electronics/smartphones", "nameKey": "goods.electronics.smartphones", "unspscCode": "43211509", "name": "Smartphones", "level": 3 },
+            { "id": "laptops", "slug": "goods/electronics/laptops", "nameKey": "goods.electronics.laptops", "unspscCode": "43211500", "name": "Laptops & Computers", "level": 3 },
+            { "id": "tablets", "slug": "goods/electronics/tablets", "nameKey": "goods.electronics.tablets", "unspscCode": "43211510", "name": "Tablets & E-Readers", "level": 3 },
+            { "id": "audio-video", "slug": "goods/electronics/audio-video", "nameKey": "goods.electronics.audio-video", "unspscCode": "43211600", "name": "Audio & Video", "level": 3 },
+            { "id": "cameras", "slug": "goods/electronics/cameras", "nameKey": "goods.electronics.cameras", "unspscCode": "43211601", "name": "Cameras & Optics", "level": 3 },
+            { "id": "electronics-accessories", "slug": "goods/electronics/accessories", "nameKey": "goods.electronics.accessories", "unspscCode": "43211700", "name": "Accessories", "level": 3 },
+            { "id": "gaming", "slug": "goods/electronics/gaming", "nameKey": "goods.electronics.gaming", "unspscCode": "43211800", "name": "Gaming & Consoles", "level": 3 },
+            { "id": "wearable-tech", "slug": "goods/electronics/wearables", "nameKey": "goods.electronics.wearables", "unspscCode": "43211900", "name": "Wearable Technology", "level": 3 }
+          ]
+        },
+        {
+          "id": "clothing",
+          "slug": "goods/clothing",
+          "nameKey": "goods.clothing",
+          "unspscCode": "53100000",
+          "name": "Clothing & Fashion",
+          "level": 2,
+          "subcategories": [
+            { "id": "mens-clothing", "slug": "goods/clothing/mens", "nameKey": "goods.clothing.mens", "unspscCode": "53101500", "name": "Men's Clothing", "level": 3 },
+            { "id": "womens-clothing", "slug": "goods/clothing/womens", "nameKey": "goods.clothing.womens", "unspscCode": "53101501", "name": "Women's Clothing", "level": 3 },
+            { "id": "children-clothing", "slug": "goods/clothing/children", "nameKey": "goods.clothing.children", "unspscCode": "53101502", "name": "Children's Clothing", "level": 3 },
+            { "id": "shoes", "slug": "goods/clothing/shoes", "nameKey": "goods.clothing.shoes", "unspscCode": "53102000", "name": "Shoes", "level": 3 },
+            { "id": "sportswear", "slug": "goods/clothing/sportswear", "nameKey": "goods.clothing.sportswear", "unspscCode": "53102500", "name": "Sportswear & Activewear", "level": 3 },
+            { "id": "underwear", "slug": "goods/clothing/underwear", "nameKey": "goods.clothing.underwear", "unspscCode": "53102600", "name": "Underwear & Lingerie", "level": 3 },
+            { "id": "fashion-accessories", "slug": "goods/clothing/accessories", "nameKey": "goods.clothing.accessories", "unspscCode": "53102700", "name": "Fashion Accessories", "level": 3 }
+          ]
+        },
+        {
+          "id": "home",
+          "slug": "goods/home",
+          "nameKey": "goods.home",
+          "unspscCode": "56000000",
+          "name": "Home & Garden",
+          "level": 2,
+          "subcategories": [
+            { "id": "furniture", "slug": "goods/home/furniture", "nameKey": "goods.home.furniture", "unspscCode": "56101500", "name": "Furniture", "level": 3 },
+            { "id": "kitchen", "slug": "goods/home/kitchen", "nameKey": "goods.home.kitchen", "unspscCode": "56101600", "name": "Kitchen & Dining", "level": 3 },
+            { "id": "bedding", "slug": "goods/home/bedding", "nameKey": "goods.home.bedding", "unspscCode": "56101700", "name": "Bedding & Linens", "level": 3 },
+            { "id": "tools", "slug": "goods/home/tools", "nameKey": "goods.home.tools", "unspscCode": "27111500", "name": "Tools & Hardware", "level": 3 },
+            { "id": "garden", "slug": "goods/home/garden", "nameKey": "goods.home.garden", "unspscCode": "56101800", "name": "Garden & Outdoor", "level": 3 },
+            { "id": "lighting", "slug": "goods/home/lighting", "nameKey": "goods.home.lighting", "unspscCode": "56101900", "name": "Lighting", "level": 3 },
+            { "id": "decor", "slug": "goods/home/decor", "nameKey": "goods.home.decor", "unspscCode": "56102000", "name": "Home Decor", "level": 3 }
+          ]
+        },
+        {
+          "id": "food",
+          "slug": "goods/food",
+          "nameKey": "goods.food",
+          "unspscCode": "50000000",
+          "name": "Food & Beverages",
+          "level": 2,
+          "subcategories": [
+            { "id": "snacks", "slug": "goods/food/snacks", "nameKey": "goods.food.snacks", "unspscCode": "50101500", "name": "Snacks & Confectionery", "level": 3 },
+            { "id": "beverages", "slug": "goods/food/beverages", "nameKey": "goods.food.beverages", "unspscCode": "50200000", "name": "Beverages", "level": 3 },
+            { "id": "dairy", "slug": "goods/food/dairy", "nameKey": "goods.food.dairy", "unspscCode": "50101600", "name": "Dairy & Eggs", "level": 3 },
+            { "id": "bakery", "slug": "goods/food/bakery", "nameKey": "goods.food.bakery", "unspscCode": "50101700", "name": "Bakery & Bread", "level": 3 },
+            { "id": "organic", "slug": "goods/food/organic", "nameKey": "goods.food.organic", "unspscCode": "50101800", "name": "Organic & Natural", "level": 3 },
+            { "id": "specialty", "slug": "goods/food/specialty", "nameKey": "goods.food.specialty", "unspscCode": "50101900", "name": "Specialty & Gourmet", "level": 3 },
+            { "id": "supplements", "slug": "goods/food/supplements", "nameKey": "goods.food.supplements", "unspscCode": "51101500", "name": "Food Supplements", "level": 3 }
+          ]
+        },
+        {
+          "id": "health-beauty",
+          "slug": "goods/health-beauty",
+          "nameKey": "goods.health-beauty",
+          "unspscCode": "51100000",
+          "name": "Health & Beauty",
+          "level": 2,
+          "subcategories": [
+            { "id": "skincare", "slug": "goods/health-beauty/skincare", "nameKey": "goods.health-beauty.skincare", "unspscCode": "51101600", "name": "Skincare", "level": 3 },
+            { "id": "haircare", "slug": "goods/health-beauty/haircare", "nameKey": "goods.health-beauty.haircare", "unspscCode": "51101700", "name": "Haircare", "level": 3 },
+            { "id": "makeup", "slug": "goods/health-beauty/makeup", "nameKey": "goods.health-beauty.makeup", "unspscCode": "51101800", "name": "Makeup & Cosmetics", "level": 3 },
+            { "id": "personal-care", "slug": "goods/health-beauty/personal-care", "nameKey": "goods.health-beauty.personal-care", "unspscCode": "51101900", "name": "Personal Care", "level": 3 },
+            { "id": "medical-devices", "slug": "goods/health-beauty/medical-devices", "nameKey": "goods.health-beauty.medical-devices", "unspscCode": "42101500", "name": "Medical Devices", "level": 3 },
+            { "id": "vitamins", "slug": "goods/health-beauty/vitamins", "nameKey": "goods.health-beauty.vitamins", "unspscCode": "51102000", "name": "Vitamins & Supplements", "level": 3 }
+          ]
+        },
+        {
+          "id": "automotive",
+          "slug": "goods/automotive",
+          "nameKey": "goods.automotive",
+          "unspscCode": "30200000",
+          "name": "Automotive",
+          "level": 2,
+          "subcategories": [
+            { "id": "car-parts", "slug": "goods/automotive/parts", "nameKey": "goods.automotive.parts", "unspscCode": "30201500", "name": "Car Parts", "level": 3 },
+            { "id": "car-accessories", "slug": "goods/automotive/accessories", "nameKey": "goods.automotive.accessories", "unspscCode": "30201600", "name": "Car Accessories", "level": 3 },
+            { "id": "motorcycle", "slug": "goods/automotive/motorcycle", "nameKey": "goods.automotive.motorcycle", "unspscCode": "30201700", "name": "Motorcycle Parts & Accessories", "level": 3 },
+            { "id": "bicycle", "slug": "goods/automotive/bicycle", "nameKey": "goods.automotive.bicycle", "unspscCode": "30201800", "name": "Bicycles & E-Bikes", "level": 3 },
+            { "id": "tires", "slug": "goods/automotive/tires", "nameKey": "goods.automotive.tires", "unspscCode": "30201900", "name": "Tires & Wheels", "level": 3 }
+          ]
+        },
+        {
+          "id": "sports-outdoor",
+          "slug": "goods/sports-outdoor",
+          "nameKey": "goods.sports-outdoor",
+          "unspscCode": "52000000",
+          "name": "Sports & Outdoor",
+          "level": 2,
+          "subcategories": [
+            { "id": "fitness", "slug": "goods/sports-outdoor/fitness", "nameKey": "goods.sports-outdoor.fitness", "unspscCode": "52001500", "name": "Fitness Equipment", "level": 3 },
+            { "id": "team-sports", "slug": "goods/sports-outdoor/team-sports", "nameKey": "goods.sports-outdoor.team-sports", "unspscCode": "52001600", "name": "Team Sports", "level": 3 },
+            { "id": "outdoor-gear", "slug": "goods/sports-outdoor/outdoor-gear", "nameKey": "goods.sports-outdoor.outdoor-gear", "unspscCode": "52001700", "name": "Outdoor Gear & Camping", "level": 3 },
+            { "id": "water-sports", "slug": "goods/sports-outdoor/water-sports", "nameKey": "goods.sports-outdoor.water-sports", "unspscCode": "52001800", "name": "Water Sports", "level": 3 },
+            { "id": "winter-sports", "slug": "goods/sports-outdoor/winter-sports", "nameKey": "goods.sports-outdoor.winter-sports", "unspscCode": "52001900", "name": "Winter Sports", "level": 3 },
+            { "id": "yoga", "slug": "goods/sports-outdoor/yoga", "nameKey": "goods.sports-outdoor.yoga", "unspscCode": "52002000", "name": "Yoga & Pilates", "level": 3 }
+          ]
+        },
+        {
+          "id": "office-supplies",
+          "slug": "goods/office-supplies",
+          "nameKey": "goods.office-supplies",
+          "unspscCode": "55100000",
+          "name": "Office Supplies",
+          "level": 2,
+          "subcategories": [
+            { "id": "stationery", "slug": "goods/office-supplies/stationery", "nameKey": "goods.office-supplies.stationery", "unspscCode": "55101500", "name": "Stationery", "level": 3 },
+            { "id": "printing", "slug": "goods/office-supplies/printing", "nameKey": "goods.office-supplies.printing", "unspscCode": "55101600", "name": "Printing & Paper", "level": 3 },
+            { "id": "desk-accessories", "slug": "goods/office-supplies/desk-accessories", "nameKey": "goods.office-supplies.desk-accessories", "unspscCode": "55101700", "name": "Desk Accessories", "level": 3 },
+            { "id": "storage", "slug": "goods/office-supplies/storage", "nameKey": "goods.office-supplies.storage", "unspscCode": "55101800", "name": "Storage & Organization", "level": 3 },
+            { "id": "presentation", "slug": "goods/office-supplies/presentation", "nameKey": "goods.office-supplies.presentation", "unspscCode": "55101900", "name": "Presentation Supplies", "level": 3 }
+          ]
+        },
+        {
+          "id": "jewelry-watches",
+          "slug": "goods/jewelry-watches",
+          "nameKey": "goods.jewelry-watches",
+          "unspscCode": "53110000",
+          "name": "Jewelry & Watches",
+          "level": 2,
+          "subcategories": [
+            { "id": "watches", "slug": "goods/jewelry-watches/watches", "nameKey": "goods.jewelry-watches.watches", "unspscCode": "53111500", "name": "Watches", "level": 3 },
+            { "id": "rings", "slug": "goods/jewelry-watches/rings", "nameKey": "goods.jewelry-watches.rings", "unspscCode": "53111600", "name": "Rings", "level": 3 },
+            { "id": "necklaces", "slug": "goods/jewelry-watches/necklaces", "nameKey": "goods.jewelry-watches.necklaces", "unspscCode": "53111700", "name": "Necklaces & Pendants", "level": 3 },
+            { "id": "bracelets", "slug": "goods/jewelry-watches/bracelets", "nameKey": "goods.jewelry-watches.bracelets", "unspscCode": "53111800", "name": "Bracelets", "level": 3 },
+            { "id": "earrings", "slug": "goods/jewelry-watches/earrings", "nameKey": "goods.jewelry-watches.earrings", "unspscCode": "53111900", "name": "Earrings", "level": 3 }
+          ]
+        },
+        {
+          "id": "pets",
+          "slug": "goods/pets",
+          "nameKey": "goods.pets",
+          "unspscCode": "51110000",
+          "name": "Pet Supplies",
+          "level": 2,
+          "subcategories": [
+            { "id": "pet-food", "slug": "goods/pets/food", "nameKey": "goods.pets.food", "unspscCode": "51111500", "name": "Pet Food", "level": 3 },
+            { "id": "pet-accessories", "slug": "goods/pets/accessories", "nameKey": "goods.pets.accessories", "unspscCode": "51111600", "name": "Pet Accessories", "level": 3 },
+            { "id": "pet-health", "slug": "goods/pets/health", "nameKey": "goods.pets.health", "unspscCode": "51111700", "name": "Pet Health & Grooming", "level": 3 },
+            { "id": "pet-toys", "slug": "goods/pets/toys", "nameKey": "goods.pets.toys", "unspscCode": "51111800", "name": "Pet Toys", "level": 3 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "digital",
+      "slug": "digital",
+      "nameKey": "digital",
+      "unspscCode": "43230000",
+      "name": "Digital",
+      "offerType": "PRODUCT",
+      "level": 1,
+      "color": "primary",
+      "subcategories": [
+        {
+          "id": "software",
+          "slug": "digital/software",
+          "nameKey": "digital.software",
+          "unspscCode": "43231500",
+          "name": "Software & Apps",
+          "level": 2,
+          "subcategories": [
+            { "id": "productivity", "slug": "digital/software/productivity", "nameKey": "digital.software.productivity", "unspscCode": "43231501", "name": "Productivity Tools", "level": 3 },
+            { "id": "communication", "slug": "digital/software/communication", "nameKey": "digital.software.communication", "unspscCode": "43231502", "name": "Communication", "level": 3 },
+            { "id": "dev-tools", "slug": "digital/software/dev-tools", "nameKey": "digital.software.dev-tools", "unspscCode": "43231503", "name": "Development Tools", "level": 3 },
+            { "id": "security", "slug": "digital/software/security", "nameKey": "digital.software.security", "unspscCode": "43231504", "name": "Security & Privacy", "level": 3 },
+            { "id": "accounting", "slug": "digital/software/accounting", "nameKey": "digital.software.accounting", "unspscCode": "43231505", "name": "Accounting & Finance", "level": 3 },
+            { "id": "project-management", "slug": "digital/software/project-management", "nameKey": "digital.software.project-management", "unspscCode": "43231506", "name": "Project Management", "level": 3 },
+            { "id": "crm", "slug": "digital/software/crm", "nameKey": "digital.software.crm", "unspscCode": "43231507", "name": "CRM & Sales", "level": 3 }
+          ]
+        },
+        {
+          "id": "media",
+          "slug": "digital/media",
+          "nameKey": "digital.media",
+          "unspscCode": "55000000",
+          "name": "Digital Media",
+          "level": 2,
+          "subcategories": [
+            { "id": "stock-photos", "slug": "digital/media/stock-photos", "nameKey": "digital.media.stock-photos", "unspscCode": "55001500", "name": "Stock Photos & Images", "level": 3 },
+            { "id": "graphics", "slug": "digital/media/graphics", "nameKey": "digital.media.graphics", "unspscCode": "55001501", "name": "Graphics & Vectors", "level": 3 },
+            { "id": "music", "slug": "digital/media/music", "nameKey": "digital.media.music", "unspscCode": "55001502", "name": "Music & Audio", "level": 3 },
+            { "id": "video", "slug": "digital/media/video", "nameKey": "digital.media.video", "unspscCode": "55001503", "name": "Video & Motion", "level": 3 },
+            { "id": "fonts", "slug": "digital/media/fonts", "nameKey": "digital.media.fonts", "unspscCode": "55001504", "name": "Fonts & Typography", "level": 3 },
+            { "id": "3d-models", "slug": "digital/media/3d-models", "nameKey": "digital.media.3d-models", "unspscCode": "55001505", "name": "3D Models & Assets", "level": 3 }
+          ]
+        },
+        {
+          "id": "templates",
+          "slug": "digital/templates",
+          "nameKey": "digital.templates",
+          "unspscCode": "82000000",
+          "name": "Templates & Designs",
+          "level": 2,
+          "subcategories": [
+            { "id": "web-templates", "slug": "digital/templates/web", "nameKey": "digital.templates.web", "unspscCode": "82001500", "name": "Web Templates", "level": 3 },
+            { "id": "print-templates", "slug": "digital/templates/print", "nameKey": "digital.templates.print", "unspscCode": "82001501", "name": "Print Templates", "level": 3 },
+            { "id": "ui-kits", "slug": "digital/templates/ui-kits", "nameKey": "digital.templates.ui-kits", "unspscCode": "82001502", "name": "UI Kits & Components", "level": 3 },
+            { "id": "presentations", "slug": "digital/templates/presentations", "nameKey": "digital.templates.presentations", "unspscCode": "82001503", "name": "Presentations", "level": 3 },
+            { "id": "social-media", "slug": "digital/templates/social-media", "nameKey": "digital.templates.social-media", "unspscCode": "82001504", "name": "Social Media Templates", "level": 3 },
+            { "id": "email-templates", "slug": "digital/templates/email", "nameKey": "digital.templates.email", "unspscCode": "82001505", "name": "Email Templates", "level": 3 }
+          ]
+        },
+        {
+          "id": "courses",
+          "slug": "digital/courses",
+          "nameKey": "digital.courses",
+          "unspscCode": "85200000",
+          "name": "Online Courses",
+          "level": 2,
+          "subcategories": [
+            { "id": "business-courses", "slug": "digital/courses/business", "nameKey": "digital.courses.business", "unspscCode": "85201500", "name": "Business & Management", "level": 3 },
+            { "id": "tech-courses", "slug": "digital/courses/technology", "nameKey": "digital.courses.technology", "unspscCode": "85201501", "name": "Technology & Programming", "level": 3 },
+            { "id": "creative-courses", "slug": "digital/courses/creative", "nameKey": "digital.courses.creative", "unspscCode": "85201502", "name": "Creative & Design", "level": 3 },
+            { "id": "language-courses", "slug": "digital/courses/languages", "nameKey": "digital.courses.languages", "unspscCode": "85201503", "name": "Languages", "level": 3 },
+            { "id": "marketing-courses", "slug": "digital/courses/marketing", "nameKey": "digital.courses.marketing", "unspscCode": "85201504", "name": "Marketing & Sales", "level": 3 },
+            { "id": "finance-courses", "slug": "digital/courses/finance", "nameKey": "digital.courses.finance", "unspscCode": "85201505", "name": "Finance & Accounting", "level": 3 }
+          ]
+        },
+        {
+          "id": "ebooks",
+          "slug": "digital/ebooks",
+          "nameKey": "digital.ebooks",
+          "unspscCode": "55121500",
+          "name": "E-Books & Publications",
+          "level": 2,
+          "subcategories": [
+            { "id": "fiction", "slug": "digital/ebooks/fiction", "nameKey": "digital.ebooks.fiction", "unspscCode": "55121501", "name": "Fiction & Literature", "level": 3 },
+            { "id": "non-fiction", "slug": "digital/ebooks/non-fiction", "nameKey": "digital.ebooks.non-fiction", "unspscCode": "55121502", "name": "Non-Fiction & Reference", "level": 3 },
+            { "id": "guides", "slug": "digital/ebooks/guides", "nameKey": "digital.ebooks.guides", "unspscCode": "55121503", "name": "Guides & How-Tos", "level": 3 },
+            { "id": "whitepapers", "slug": "digital/ebooks/whitepapers", "nameKey": "digital.ebooks.whitepapers", "unspscCode": "55121504", "name": "Whitepapers & Research", "level": 3 }
+          ]
+        },
+        {
+          "id": "plugins",
+          "slug": "digital/plugins",
+          "nameKey": "digital.plugins",
+          "unspscCode": "43231800",
+          "name": "Plugins & Extensions",
+          "level": 2,
+          "subcategories": [
+            { "id": "wordpress-plugins", "slug": "digital/plugins/wordpress", "nameKey": "digital.plugins.wordpress", "unspscCode": "43231801", "name": "WordPress Plugins", "level": 3 },
+            { "id": "shopify-apps", "slug": "digital/plugins/shopify", "nameKey": "digital.plugins.shopify", "unspscCode": "43231802", "name": "Shopify Apps", "level": 3 },
+            { "id": "browser-extensions", "slug": "digital/plugins/browser", "nameKey": "digital.plugins.browser", "unspscCode": "43231803", "name": "Browser Extensions", "level": 3 },
+            { "id": "api-tools", "slug": "digital/plugins/api-tools", "nameKey": "digital.plugins.api-tools", "unspscCode": "43231804", "name": "API Tools & Integrations", "level": 3 }
+          ]
+        },
+        {
+          "id": "ai-tools",
+          "slug": "digital/ai-tools",
+          "nameKey": "digital.ai-tools",
+          "unspscCode": "43232000",
+          "name": "AI & Machine Learning",
+          "level": 2,
+          "subcategories": [
+            { "id": "ai-prompts", "slug": "digital/ai-tools/prompts", "nameKey": "digital.ai-tools.prompts", "unspscCode": "43232001", "name": "AI Prompts & Workflows", "level": 3 },
+            { "id": "ai-models", "slug": "digital/ai-tools/models", "nameKey": "digital.ai-tools.models", "unspscCode": "43232002", "name": "Pre-trained Models", "level": 3 },
+            { "id": "ai-datasets", "slug": "digital/ai-tools/datasets", "nameKey": "digital.ai-tools.datasets", "unspscCode": "43232003", "name": "Datasets & Training Data", "level": 3 },
+            { "id": "ai-agents", "slug": "digital/ai-tools/agents", "nameKey": "digital.ai-tools.agents", "unspscCode": "43232004", "name": "AI Agents & Bots", "level": 3 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "services",
+      "slug": "services",
+      "nameKey": "services",
+      "unspscCode": "80000000",
+      "name": "Services",
+      "offerType": "SERVICE",
+      "level": 1,
+      "color": "secondary",
+      "subcategories": [
+        {
+          "id": "consulting",
+          "slug": "services/consulting",
+          "nameKey": "services.consulting",
+          "unspscCode": "80100000",
+          "name": "Consulting & Advisory",
+          "level": 2,
+          "subcategories": [
+            { "id": "business-strategy", "slug": "services/consulting/business-strategy", "nameKey": "services.consulting.business-strategy", "unspscCode": "80101500", "name": "Business Strategy", "level": 3 },
+            { "id": "legal", "slug": "services/consulting/legal", "nameKey": "services.consulting.legal", "unspscCode": "80101600", "name": "Legal Advisory", "level": 3 },
+            { "id": "financial", "slug": "services/consulting/financial", "nameKey": "services.consulting.financial", "unspscCode": "80101700", "name": "Financial Advisory", "level": 3 },
+            { "id": "hr", "slug": "services/consulting/hr", "nameKey": "services.consulting.hr", "unspscCode": "80101800", "name": "HR & People", "level": 3 },
+            { "id": "tax", "slug": "services/consulting/tax", "nameKey": "services.consulting.tax", "unspscCode": "80101900", "name": "Tax Advisory", "level": 3 },
+            { "id": "compliance", "slug": "services/consulting/compliance", "nameKey": "services.consulting.compliance", "unspscCode": "80102000", "name": "Compliance & Regulatory", "level": 3 }
+          ]
+        },
+        {
+          "id": "development",
+          "slug": "services/development",
+          "nameKey": "services.development",
+          "unspscCode": "80110000",
+          "name": "Development & Engineering",
+          "level": 2,
+          "subcategories": [
+            { "id": "web-dev", "slug": "services/development/web", "nameKey": "services.development.web", "unspscCode": "80111500", "name": "Web Development", "level": 3 },
+            { "id": "mobile-dev", "slug": "services/development/mobile", "nameKey": "services.development.mobile", "unspscCode": "80111600", "name": "Mobile Development", "level": 3 },
+            { "id": "backend-dev", "slug": "services/development/backend", "nameKey": "services.development.backend", "unspscCode": "80111700", "name": "Backend & Infrastructure", "level": 3 },
+            { "id": "devops", "slug": "services/development/devops", "nameKey": "services.development.devops", "unspscCode": "80111800", "name": "DevOps & CI/CD", "level": 3 },
+            { "id": "blockchain", "slug": "services/development/blockchain", "nameKey": "services.development.blockchain", "unspscCode": "80111900", "name": "Blockchain & Web3", "level": 3 },
+            { "id": "data-engineering", "slug": "services/development/data", "nameKey": "services.development.data", "unspscCode": "80112000", "name": "Data Engineering", "level": 3 },
+            { "id": "ai-ml", "slug": "services/development/ai-ml", "nameKey": "services.development.ai-ml", "unspscCode": "80112100", "name": "AI & Machine Learning", "level": 3 }
+          ]
+        },
+        {
+          "id": "design",
+          "slug": "services/design",
+          "nameKey": "services.design",
+          "unspscCode": "80120000",
+          "name": "Design & Creative",
+          "level": 2,
+          "subcategories": [
+            { "id": "graphic-design", "slug": "services/design/graphic", "nameKey": "services.design.graphic", "unspscCode": "80121500", "name": "Graphic Design", "level": 3 },
+            { "id": "uiux-design", "slug": "services/design/uiux", "nameKey": "services.design.uiux", "unspscCode": "80121600", "name": "UI/UX Design", "level": 3 },
+            { "id": "branding", "slug": "services/design/branding", "nameKey": "services.design.branding", "unspscCode": "80121700", "name": "Branding & Identity", "level": 3 },
+            { "id": "illustration", "slug": "services/design/illustration", "nameKey": "services.design.illustration", "unspscCode": "80121800", "name": "Illustration & Art", "level": 3 },
+            { "id": "motion-design", "slug": "services/design/motion", "nameKey": "services.design.motion", "unspscCode": "80121900", "name": "Motion Design & Animation", "level": 3 },
+            { "id": "3d-design", "slug": "services/design/3d", "nameKey": "services.design.3d", "unspscCode": "80122000", "name": "3D Design & Visualization", "level": 3 }
+          ]
+        },
+        {
+          "id": "marketing",
+          "slug": "services/marketing",
+          "nameKey": "services.marketing",
+          "unspscCode": "81110000",
+          "name": "Marketing & Sales",
+          "level": 2,
+          "subcategories": [
+            { "id": "seo", "slug": "services/marketing/seo", "nameKey": "services.marketing.seo", "unspscCode": "81111500", "name": "SEO & SEM", "level": 3 },
+            { "id": "social-media-management", "slug": "services/marketing/social-media", "nameKey": "services.marketing.social-media", "unspscCode": "81111600", "name": "Social Media Management", "level": 3 },
+            { "id": "content-marketing", "slug": "services/marketing/content", "nameKey": "services.marketing.content", "unspscCode": "81111700", "name": "Content Marketing", "level": 3 },
+            { "id": "email-marketing", "slug": "services/marketing/email", "nameKey": "services.marketing.email", "unspscCode": "81111800", "name": "Email Marketing", "level": 3 },
+            { "id": "ppc", "slug": "services/marketing/ppc", "nameKey": "services.marketing.ppc", "unspscCode": "81111900", "name": "PPC & Paid Advertising", "level": 3 },
+            { "id": "influencer", "slug": "services/marketing/influencer", "nameKey": "services.marketing.influencer", "unspscCode": "81112000", "name": "Influencer Marketing", "level": 3 }
+          ]
+        },
+        {
+          "id": "education",
+          "slug": "services/education",
+          "nameKey": "services.education",
+          "unspscCode": "86000000",
+          "name": "Education & Training",
+          "level": 2,
+          "subcategories": [
+            { "id": "tutoring", "slug": "services/education/tutoring", "nameKey": "services.education.tutoring", "unspscCode": "86101500", "name": "Tutoring & Coaching", "level": 3 },
+            { "id": "workshops", "slug": "services/education/workshops", "nameKey": "services.education.workshops", "unspscCode": "86101600", "name": "Workshops & Seminars", "level": 3 },
+            { "id": "corporate-training", "slug": "services/education/corporate", "nameKey": "services.education.corporate", "unspscCode": "86101700", "name": "Corporate Training", "level": 3 },
+            { "id": "certification", "slug": "services/education/certification", "nameKey": "services.education.certification", "unspscCode": "86101800", "name": "Certification Programs", "level": 3 },
+            { "id": "e-learning", "slug": "services/education/e-learning", "nameKey": "services.education.e-learning", "unspscCode": "86101900", "name": "E-Learning Development", "level": 3 }
+          ]
+        },
+        {
+          "id": "it-services",
+          "slug": "services/it-services",
+          "nameKey": "services.it-services",
+          "unspscCode": "80130000",
+          "name": "IT Services",
+          "level": 2,
+          "subcategories": [
+            { "id": "cloud-services", "slug": "services/it-services/cloud", "nameKey": "services.it-services.cloud", "unspscCode": "80131500", "name": "Cloud Services", "level": 3 },
+            { "id": "cybersecurity", "slug": "services/it-services/cybersecurity", "nameKey": "services.it-services.cybersecurity", "unspscCode": "80131600", "name": "Cybersecurity", "level": 3 },
+            { "id": "managed-services", "slug": "services/it-services/managed", "nameKey": "services.it-services.managed", "unspscCode": "80131700", "name": "Managed IT Services", "level": 3 },
+            { "id": "system-admin", "slug": "services/it-services/system-admin", "nameKey": "services.it-services.system-admin", "unspscCode": "80131800", "name": "System Administration", "level": 3 },
+            { "id": "qa-testing", "slug": "services/it-services/qa", "nameKey": "services.it-services.qa", "unspscCode": "80131900", "name": "QA & Testing", "level": 3 }
+          ]
+        },
+        {
+          "id": "writing-translation",
+          "slug": "services/writing-translation",
+          "nameKey": "services.writing-translation",
+          "unspscCode": "81120000",
+          "name": "Writing & Translation",
+          "level": 2,
+          "subcategories": [
+            { "id": "copywriting", "slug": "services/writing-translation/copywriting", "nameKey": "services.writing-translation.copywriting", "unspscCode": "81121500", "name": "Copywriting", "level": 3 },
+            { "id": "technical-writing", "slug": "services/writing-translation/technical-writing", "nameKey": "services.writing-translation.technical-writing", "unspscCode": "81121600", "name": "Technical Writing", "level": 3 },
+            { "id": "translation", "slug": "services/writing-translation/translation", "nameKey": "services.writing-translation.translation", "unspscCode": "81121700", "name": "Translation", "level": 3 },
+            { "id": "proofreading", "slug": "services/writing-translation/proofreading", "nameKey": "services.writing-translation.proofreading", "unspscCode": "81121800", "name": "Proofreading & Editing", "level": 3 },
+            { "id": "content-creation", "slug": "services/writing-translation/content-creation", "nameKey": "services.writing-translation.content-creation", "unspscCode": "81121900", "name": "Content Creation", "level": 3 }
+          ]
+        },
+        {
+          "id": "audio-video-production",
+          "slug": "services/audio-video-production",
+          "nameKey": "services.audio-video-production",
+          "unspscCode": "81130000",
+          "name": "Audio & Video Production",
+          "level": 2,
+          "subcategories": [
+            { "id": "video-production", "slug": "services/audio-video-production/video", "nameKey": "services.audio-video-production.video", "unspscCode": "81131500", "name": "Video Production", "level": 3 },
+            { "id": "video-editing", "slug": "services/audio-video-production/video-editing", "nameKey": "services.audio-video-production.video-editing", "unspscCode": "81131600", "name": "Video Editing & Post-Production", "level": 3 },
+            { "id": "music-production", "slug": "services/audio-video-production/music", "nameKey": "services.audio-video-production.music", "unspscCode": "81131700", "name": "Music Production", "level": 3 },
+            { "id": "voiceover", "slug": "services/audio-video-production/voiceover", "nameKey": "services.audio-video-production.voiceover", "unspscCode": "81131800", "name": "Voiceover & Narration", "level": 3 },
+            { "id": "podcast", "slug": "services/audio-video-production/podcast", "nameKey": "services.audio-video-production.podcast", "unspscCode": "81131900", "name": "Podcast Production", "level": 3 }
+          ]
+        },
+        {
+          "id": "business-services",
+          "slug": "services/business-services",
+          "nameKey": "services.business-services",
+          "unspscCode": "81140000",
+          "name": "Business Services",
+          "level": 2,
+          "subcategories": [
+            { "id": "virtual-assistant", "slug": "services/business-services/virtual-assistant", "nameKey": "services.business-services.virtual-assistant", "unspscCode": "81141500", "name": "Virtual Assistant", "level": 3 },
+            { "id": "bookkeeping", "slug": "services/business-services/bookkeeping", "nameKey": "services.business-services.bookkeeping", "unspscCode": "81141600", "name": "Bookkeeping", "level": 3 },
+            { "id": "recruiting", "slug": "services/business-services/recruiting", "nameKey": "services.business-services.recruiting", "unspscCode": "81141700", "name": "Recruiting & Staffing", "level": 3 },
+            { "id": "fundraising", "slug": "services/business-services/fundraising", "nameKey": "services.business-services.fundraising", "unspscCode": "81141800", "name": "Fundraising & Investment Prep", "level": 3 },
+            { "id": "business-plan", "slug": "services/business-services/business-plan", "nameKey": "services.business-services.business-plan", "unspscCode": "81141900", "name": "Business Plan Writing", "level": 3 }
+          ]
+        },
+        {
+          "id": "logistics",
+          "slug": "services/logistics",
+          "nameKey": "services.logistics",
+          "unspscCode": "81150000",
+          "name": "Logistics & Delivery",
+          "level": 2,
+          "subcategories": [
+            { "id": "shipping", "slug": "services/logistics/shipping", "nameKey": "services.logistics.shipping", "unspscCode": "81151500", "name": "Shipping & Freight", "level": 3 },
+            { "id": "warehousing", "slug": "services/logistics/warehousing", "nameKey": "services.logistics.warehousing", "unspscCode": "81151600", "name": "Warehousing & Storage", "level": 3 },
+            { "id": "courier", "slug": "services/logistics/courier", "nameKey": "services.logistics.courier", "unspscCode": "81151700", "name": "Courier & Express Delivery", "level": 3 },
+            { "id": "fulfillment", "slug": "services/logistics/fulfillment", "nameKey": "services.logistics.fulfillment", "unspscCode": "81151800", "name": "Order Fulfillment", "level": 3 }
+          ]
+        },
+        {
+          "id": "photography",
+          "slug": "services/photography",
+          "nameKey": "services.photography",
+          "unspscCode": "81160000",
+          "name": "Photography",
+          "level": 2,
+          "subcategories": [
+            { "id": "portrait", "slug": "services/photography/portrait", "nameKey": "services.photography.portrait", "unspscCode": "81161500", "name": "Portrait Photography", "level": 3 },
+            { "id": "product-photography", "slug": "services/photography/product", "nameKey": "services.photography.product", "unspscCode": "81161600", "name": "Product Photography", "level": 3 },
+            { "id": "event-photography", "slug": "services/photography/event", "nameKey": "services.photography.event", "unspscCode": "81161700", "name": "Event Photography", "level": 3 },
+            { "id": "drone", "slug": "services/photography/drone", "nameKey": "services.photography.drone", "unspscCode": "81161800", "name": "Drone Photography & Videography", "level": 3 }
+          ]
+        },
+        {
+          "id": "cooperation",
+          "slug": "services/cooperation",
+          "nameKey": "services.cooperation",
+          "unspscCode": "81170000",
+          "name": "Cooperation",
+          "level": 2,
+          "subcategories": [
+            { "id": "projects", "slug": "services/cooperation/projects", "nameKey": "services.cooperation.projects", "unspscCode": "81171500", "name": "Joint Projects", "level": 3 },
+            { "id": "networks", "slug": "services/cooperation/networks", "nameKey": "services.cooperation.networks", "unspscCode": "81171600", "name": "Professional Networks", "level": 3 },
+            { "id": "partnerships", "slug": "services/cooperation/partnerships", "nameKey": "services.cooperation.partnerships", "unspscCode": "81171700", "name": "Business Partnerships", "level": 3 }
+          ]
+        },
+        {
+          "id": "cleaning-maintenance",
+          "slug": "services/cleaning-maintenance",
+          "nameKey": "services.cleaning-maintenance",
+          "unspscCode": "81180000",
+          "name": "Cleaning & Maintenance",
+          "level": 2,
+          "subcategories": [
+            { "id": "commercial-cleaning", "slug": "services/cleaning-maintenance/commercial", "nameKey": "services.cleaning-maintenance.commercial", "unspscCode": "81181500", "name": "Commercial Cleaning", "level": 3 },
+            { "id": "residential-cleaning", "slug": "services/cleaning-maintenance/residential", "nameKey": "services.cleaning-maintenance.residential", "unspscCode": "81181600", "name": "Residential Cleaning", "level": 3 },
+            { "id": "property-maintenance", "slug": "services/cleaning-maintenance/property", "nameKey": "services.cleaning-maintenance.property", "unspscCode": "81181700", "name": "Property Maintenance", "level": 3 },
+            { "id": "landscaping", "slug": "services/cleaning-maintenance/landscaping", "nameKey": "services.cleaning-maintenance.landscaping", "unspscCode": "81181800", "name": "Landscaping & Grounds", "level": 3 }
+          ]
+        },
+        {
+          "id": "events-entertainment",
+          "slug": "services/events-entertainment",
+          "nameKey": "services.events-entertainment",
+          "unspscCode": "81190000",
+          "name": "Events & Entertainment",
+          "level": 2,
+          "subcategories": [
+            { "id": "event-planning", "slug": "services/events-entertainment/planning", "nameKey": "services.events-entertainment.planning", "unspscCode": "81191500", "name": "Event Planning", "level": 3 },
+            { "id": "catering", "slug": "services/events-entertainment/catering", "nameKey": "services.events-entertainment.catering", "unspscCode": "81191600", "name": "Catering", "level": 3 },
+            { "id": "dj-music", "slug": "services/events-entertainment/dj-music", "nameKey": "services.events-entertainment.dj-music", "unspscCode": "81191700", "name": "DJ & Live Music", "level": 3 },
+            { "id": "venue-rental", "slug": "services/events-entertainment/venue", "nameKey": "services.events-entertainment.venue", "unspscCode": "81191800", "name": "Venue Rental", "level": 3 }
+          ]
+        }
+      ]
+    }
+  ]
+}

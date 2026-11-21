@@ -1,0 +1,10 @@
+{
+  "name": "@ds/data",
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./categories": "./categories/categories-v1.json",
+    "./countries": "./countries/countries.json"
+  }
+}

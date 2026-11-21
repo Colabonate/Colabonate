@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ds/tokens": ["packages/tokens/index.ts"],
+      "@ds/ui": ["packages/ui/index.ts"],
+      "@ds/utils": ["packages/utils/index.ts"]
+    }
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/dist",
+    "scripts/migrate-category-codes.ts",
+    "scripts/migrate-products-to-offers.ts",
+    "docs/adr342/doop-fork/**"
+  ]
+}

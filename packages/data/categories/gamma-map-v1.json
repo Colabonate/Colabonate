@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "description": "ADR-277 D3 seed map: UNSPSC level-1/2 StandardCategory slug -> idiomatic Gamma (NIP-99 t-tag) vocabulary. A starting point, not a constraint — sellers may add any tag.",
+  "map": {
+    "goods": ["goods", "merchandise", "physical-goods"],
+    "goods/electronics": ["electronics", "tech", "gadgets"],
+    "goods/clothing": ["clothing", "fashion", "apparel"],
+    "goods/home": ["home", "home-garden", "furniture"],
+    "goods/food": ["food", "beverages", "groceries"],
+    "goods/health-beauty": ["health", "beauty", "cosmetics"],
+    "goods/automotive": ["automotive", "car-parts", "vehicles"],
+    "goods/sports-outdoor": ["sports", "outdoor", "fitness"],
+    "goods/office-supplies": ["office", "office-supplies", "stationery"],
+    "goods/jewelry-watches": ["jewelry", "watches", "accessories"],
+    "goods/pets": ["pets", "pet-supplies"],
+
+    "digital": ["digital", "digital-goods"],
+    "digital/software": ["software", "apps"],
+    "digital/media": ["media", "music", "video"],
+    "digital/templates": ["templates", "design-templates"],
+    "digital/courses": ["courses", "online-course"],
+    "digital/ebooks": ["ebooks", "books"],
+    "digital/plugins": ["plugins", "addons"],
+    "digital/ai-tools": ["ai", "ai-tools"],
+
+    "services": ["services"],
+    "services/consulting": ["consulting", "advisory"],
+    "services/development": ["development", "programming", "coding"],
+    "services/design": ["design", "graphic-design"],
+    "services/marketing": ["marketing", "advertising"],
+    "services/education": ["education", "tutoring"],
+    "services/it-services": ["it", "it-services", "tech-support"],
+    "services/writing-translation": ["writing", "translation", "copywriting"],
+    "services/audio-video-production": ["audio", "video-production", "podcast"],
+    "services/business-services": ["business", "business-services"],
+    "services/logistics": ["logistics", "shipping", "delivery"],
+    "services/photography": ["photography", "photo"],
+    "services/cooperation": ["cooperation", "partnership"],
+    "services/cleaning-maintenance": ["cleaning", "maintenance"],
+    "services/events-entertainment": ["events", "entertainment"]
+  }
+}

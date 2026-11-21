@@ -1,0 +1,10 @@
+{
+  "ext": {
+    "loadimpact": {
+      "projectID": 1,
+      "name": "Colabonate Load Test"
+    }
+  },
+  "contentEncoding": "gzip",
+  "dropolog": false
+}

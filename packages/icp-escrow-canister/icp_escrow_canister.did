@@ -1,0 +1,200 @@
+// Certified read response for `get_trade_certified` (FU-619): the trade plus the subnet-signed
+// certificate and the CBOR Merkle witness proving this exact trade's funding-critical fields
+// (`certification_payload` in `lib.rs`) are part of the canister's consensus-certified state.
+// No `PartialEq` — `Trade` isn't `PartialEq` (its Candid `Utxo` isn't), and nothing needs it.
+type CertifiedTradeView = record {
+  trade : opt Trade;
+  // Raw subnet certificate over the canister's certified state tree (queries only; `None`
+  // outside query context or before the first `certified_data_set`).
+  certificate : opt blob;
+  // CBOR-encoded `HashTree` witness for this trade's 8-byte big-endian id key.
+  witness : blob;
+};
+type CreateTradeArgs = record {
+  expected_amount_sats : nat64;
+  buyer_refund_address : text;
+  seller_payout_address : text;
+  seller_pubkey : text;
+  timeout_at : nat64;
+  buyer_pubkey : text;
+  // Nostr event from `buyer_pubkey` whose content is `sig::trade_terms_message(...)` for
+  // these exact args (FU-254-J terms binding, event-shaped since FU-617). Verified before any
+  // trade ID is burned or t-ECDSA call made — see `sig::verify_trade_terms`.
+  buyer_terms_event : NostrAuthEvent;
+  // Same as `buyer_terms_event`, from `seller_pubkey`.
+  seller_terms_event : NostrAuthEvent;
+  // Milestone split in basis points, must sum to 10_000. `[10_000]` = single 100% release.
+  milestone_bps : vec nat16;
+};
+type Milestone = record { released : bool; pct_bps : nat16 };
+// NIP-01 Nostr event carrying an escrow authorization (FU-617, ADR-357 D3). The canister
+// recomputes the event id from the canonical serialization `[0, pubkey, created_at, kind, tags,
+// content]` and verifies the BIP-340 signature over it, so the event is exactly the artifact a
+// NIP-07 extension or NIP-46 bunker produces via `signEvent` — no signer can be asked for a
+// digest-only signature. Field names/types mirror the wire event; `sig` is the raw 64-byte
+// signature over `id`.
+type NostrAuthEvent = record {
+  // 64-char lowercase hex SHA-256 of the canonical NIP-01 serialization.
+  id : text;
+  // Raw 64-byte BIP-340 Schnorr signature over `id` (the event id is already a SHA-256
+  // digest, so it maps 1:1 onto a secp256k1 `Message`).
+  sig : blob;
+  // For trade-terms events this is the canonical terms message (`sig::trade_terms_message`);
+  // action events carry an empty content.
+  content : text;
+  // Application kind — domain separation lives here and in `tags` (ADR-357 D3), not in an
+  // ASCII message prefix.
+  kind : nat32;
+  tags : vec vec text;
+  // 64-char lowercase hex x-only (BIP-340) signer pubkey.
+  pubkey : text;
+  // Seconds since Unix epoch (NIP-01). Signed-over via the id; supplies the per-signature
+  // uniqueness/replay context.
+  created_at : nat64;
+};
+// A reference to a transaction output.
+type OutPoint = record {
+  // A cryptographic hash of the transaction.
+  // A transaction can output multiple UTXOs.
+  txid : blob;
+  // The index of the output within the transaction.
+  vout : nat32;
+};
+type Result = variant { Ok : TradeState; Err : TradeError };
+type Result_1 = variant { Ok : nat64; Err : TradeError };
+type Trade = record {
+  id : nat64;
+  expected_amount_sats : nat64;
+  buyer_refund_address : text;
+  seller_payout_address : text;
+  seller_pubkey : text;
+  created_at : nat64;
+  funded_at : opt nat64;
+  // Nanoseconds since epoch after which `claim_timeout_refund` becomes callable.
+  timeout_at : nat64;
+  buyer_pubkey : text;
+  state : TradeState;
+  // UTXO set observed at `check_funding` time (ADR-254 §4: "UTXO-Set + funded_at werden
+  // persistiert"). Empty until funded. FU-254-D's payout transaction spends exactly these.
+  funded_utxos : vec Utxo;
+  // SHA-256 hash of the canonical trade-terms payload (amount, addresses, milestone schedule),
+  // double-signed by buyer and seller at `create_trade` time (`sig::verify_trade_terms`,
+  // FU-254-J). Binds the canister's stored metadata to the terms both parties actually
+  // negotiated over Nostr — the server relays the signed payload but cannot fabricate terms
+  // neither party signed. Anyone who knows the negotiated terms can recompute
+  // `sig::trade_terms_message(...)` + SHA-256 and confirm it matches this field, independent of
+  // trusting the server's relay.
+  trade_terms_hash : blob;
+  // Bitcoin P2WPKH address derived via t-ECDSA for this trade (ADR-254 §3, FU-254-C).
+  btc_address : text;
+  milestones : vec Milestone;
+};
+type TradeError = variant {
+  EmptyMilestones;
+  TimeoutNotReached;
+  MilestoneIndexOutOfRange;
+  // t-ECDSA/Bitcoin management-canister call failed or returned malformed data (FU-254-C/D).
+  BitcoinApiError : record { reason : text };
+  InvalidTransition : record { action : text; from : TradeState };
+  NotFound;
+  MilestoneOutOfOrder;
+  PayoutInvariantViolation;
+  VerdictBpsMismatch : record { sum : nat32 };
+  // BIP-340 Schnorr signature failed to verify against the expected pubkey, or was malformed
+  // (FU-254-E).
+  SignatureVerificationFailed : record { reason : text };
+  // Feature is designed (ADR-254) but not yet implemented — names the follow-up that closes it.
+  NotImplemented : record { pending_followup : text };
+  MilestoneAlreadyReleased;
+  // Estimated miner fee exceeds the trade's total funded UTXO value — the payout can't cover its
+  // own broadcast cost (FU-254-D).
+  FeeExceedsInput : record { fee_sats : nat64; total_input_sats : nat64 };
+  MilestoneBpsMismatch : record { sum : nat32 };
+};
+// Trade lifecycle. Extends ADR-253's `Funded -> Released|Refunded|Disputed` with an explicit
+// `PendingFunding` pre-state (ADR-254 §1) and a `DisputeSettled` terminal state for DAO verdicts
+// that split funds between buyer and seller rather than awarding 100% to one side — a case
+// ADR-253/254's two-terminal-state sketch didn't cover, found while implementing §7.
+type TradeState = variant {
+  Disputed;
+  Refunded;
+  PendingFunding;
+  DisputeSettled : record { seller_bps : nat16; buyer_bps : nat16 };
+  Released;
+  Funded;
+};
+// An unspent transaction output.
+type Utxo = record { height : nat32; value : nat64; outpoint : OutPoint };
+service : () -> {
+  // Funding detection (ADR-254 §4, FU-254-C): queries native `bitcoin_get_utxos` for the trade's
+  // address and compares the confirmed sum against `expected_amount_sats`. The confirmation-depth
+  // *value* itself (currently 1, see `btc::MIN_CONFIRMATIONS`) remains a FU-253-H security-gate
+  // decision, not resolved here.
+  check_funding : (nat64) -> (Result);
+  // Permissionless timeout-refund claim (ADR-254 §8) — fully wired end-to-end (FU-254-D): no
+  // signature to verify, so unlike `release_milestone`/`submit_dao_verdict` there is no FU-254-E
+  // blocker here. Sweeps the trade's entire `funded_utxos` to `buyer_refund_address` minus the
+  // estimated miner fee.
+  // 
+  // The trade is optimistically flipped to `Refunded` *before* the signing/broadcast await so a
+  // second concurrent `claim_timeout_refund` call on the same trade sees a non-`Funded` state at its
+  // own eligibility check and fails fast, instead of both calls racing to sign competing
+  // transactions that spend the same UTXOs. Rolled back to `Funded` if the payout itself fails, so a
+  // failed attempt can be retried rather than stranding the trade.
+  claim_timeout_refund : (nat64) -> (Result);
+  // Server-authenticated call (ADR-254 §2): the Colabonate backend relays trade terms that both
+  // parties already agreed to over Nostr (mirrors the existing kind:16/17 offer/accept flow).
+  // `create_trade` itself moves no funds, but as of FU-254-J it no longer takes the server's word
+  // for the terms unconditionally: `args.buyer_terms_event`/`seller_terms_event` must be real
+  // signed Nostr events from `args.buyer_pubkey`/`seller_pubkey` whose content is the canonical
+  // terms payload (`sig::verify_trade_terms`, event-shaped since FU-617/ADR-357 D3) — binding what
+  // the canister stores to what both parties actually signed over Nostr, not just what the server
+  // relayed.
+  create_trade : (CreateTradeArgs) -> (Result_1);
+  get_trade : (nat64) -> (opt Trade) query;
+  // Consensus-certified trade read (FU-619, ADR-362 GAP F-5): same trade data as `get_trade`, plus
+  // the subnet's data certificate and a CBOR-encoded Merkle witness for this trade's key. A client
+  // verifies the certificate against the IC root key, walks the witness to the leaf, and compares
+  // the leaf bytes against `certification_payload(...)` recomputed from the trade fields it was
+  // shown — proving the funding-critical fields came from consensus state, not from a single
+  // (possibly faulty/malicious) replica or the relaying server. For a non-existent trade the
+  // witness is a proof of absence that reconstructs to the certified root with no leaf under the
+  // key. `certificate` is `None` only in non-query contexts (or before the first
+  // `certified_data_set`, which `init`/`post_upgrade` pre-empt). Right after an upgrade, trades
+  // beyond `CERT_REBUILD_CURSOR` briefly verify as absence until the chunked rebuild catches up —
+  // an honest degraded window, never a wrong positive.
+  get_trade_certified : (nat64) -> (CertifiedTradeView) query;
+  // Buyer- or seller-authorized dispute open (FU-254-E; event-based since FU-617). Verifies
+  // `opener_event` — the signer must be `trade.buyer_pubkey` or `trade.seller_pubkey`
+  // (`sig::verify_dispute_opener` checks the event's own `pubkey` field against both) before
+  // applying the state-transition legality check.
+  open_dispute : (nat64, NostrAuthEvent) -> (Result);
+  // Buyer-authorized milestone release (ADR-254 §2, §6, §7 signature verification — FU-254-E;
+  // Nostr-event-based since FU-617/ADR-357 D3). Verifies `buyer_event` against
+  // `trade.buyer_pubkey` (`sig::verify_milestone_release`: kind 30417, `[["trade", id],
+  // ["action", "release_milestone"], ["i", index]]` tags) before touching state. Both cases now
+  // fully execute (FU-254-H closes the previous non-final gap):
+  // 
+  // - **Final milestone:** full-drain payout to `seller_payout_address` (`btc::sign_and_broadcast_payout`,
+  // FU-254-D) — trade ends, `state -> Released`.
+  // - **Non-final milestone** (multi-milestone trades only): two-output payout — the milestone's
+  // fixed contractual share to the seller, a change output back to the trade's own escrow address
+  // for the milestones still to come (`btc::sign_and_broadcast_partial_milestone_payout`,
+  // FU-254-H). `state` stays `Funded`; `funded_utxos` is replaced with the synthesized change UTXO
+  // so the next milestone has something to spend.
+  // 
+  // Both branches use the same optimistic-lock pattern as `claim_timeout_refund`: the milestone is
+  // marked `released` (and, for the final case, `state` flipped) *before* the signing/broadcast
+  // await, so a concurrent second call for the same index sees it already claimed and fails at
+  // `state_machine::release_milestone`'s ordering check instead of racing to double-spend the same
+  // UTXO(s). Rolled back on payout failure so a failed attempt can be retried.
+  release_milestone : (nat64, nat32, NostrAuthEvent) -> (Result);
+  // DAO-verdict-authorized dispute resolution (FU-254-E). Verifies `dao_signature` against the
+  // compile-time `sig::DAO_PUBKEY_HEX` before applying the verdict. That constant is `None` in this
+  // build (governance key provisioning belongs with FU-254-G, not invented here), so this honestly
+  // reports "no DAO public key configured" rather than silently accepting any signature — the
+  // verification *machinery* (verdict-application logic, split-payout signing, FU-254-D) is complete
+  // and tested; only the actual key material is missing.
+  submit_dao_verdict : (nat64, nat16, nat16, blob) -> (Result);
+  whoami : () -> (principal) query;
+}

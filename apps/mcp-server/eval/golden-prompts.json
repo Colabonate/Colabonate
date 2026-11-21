@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "description": "Golden prompts for the Colabonate Assistant (plan docs/plans/Plan_ai-assistant-ux-output-prompt-review.md, Phase 4). Run against the production model (DeepSeek) after every system-prompt change. See README.md in this folder.",
+  "criteria": {
+    "tools": "The tool names the assistant is expected to call (in any order). Empty array = must not call a write tool.",
+    "mustConfirm": "true = the answer must summarize the action and ask for an explicit yes instead of performing it.",
+    "maxBullets": "Maximum bullet count in the prose answer.",
+    "language": "Expected reply language (BCP-47 primary subtag).",
+    "noFabricatedIds": "true = no id/pubkey-looking strings in the prose (ids may only appear in rendered cards)."
+  },
+  "cases": [
+    { "id": "buy-search-en", "lang": "en", "mode": "auth", "prompt": "Show me available offers I can buy", "expect": { "tools": ["search_offers"], "noFabricatedIds": true, "language": "en" } },
+    { "id": "buy-search-de", "lang": "de", "mode": "auth", "prompt": "Zeig mir Angebote, die ich kaufen kann", "expect": { "tools": ["search_offers"], "noFabricatedIds": true, "language": "de" } },
+    { "id": "my-offers-en", "lang": "en", "mode": "auth", "prompt": "What am I selling right now?", "expect": { "tools": ["search_my_offers"], "noFabricatedIds": true, "language": "en" } },
+    { "id": "create-offer-draft-en", "lang": "en", "mode": "auth", "prompt": "Create an offer for a 30-minute consulting call for 5000 sats", "expect": { "tools": ["create_offer"], "mustConfirm": true, "language": "en" } },
+    { "id": "create-offer-publish-en", "lang": "en", "mode": "auth", "prompt": "Create and publish an offer for logo design, 20000 sats", "expect": { "tools": ["create_offer"], "mustConfirm": true, "language": "en" } },
+    { "id": "publish-offer-confirm-en", "lang": "en", "mode": "auth", "prompt": "Publish my draft offer", "expect": { "tools": [], "mustConfirm": true, "language": "en" } },
+    { "id": "delete-offer-confirm-en", "lang": "en", "mode": "auth", "prompt": "Delete my offer titled 'Old Service'", "expect": { "tools": [], "mustConfirm": true, "language": "en" } },
+    { "id": "coop-discover-en", "lang": "en", "mode": "auth", "prompt": "What cooperation possibilities do I have?", "expect": { "tools": ["discover_cooperations"], "noFabricatedIds": true, "language": "en" } },
+    { "id": "coop-create-no-budget-en", "lang": "en", "mode": "auth", "prompt": "Start a new cooperation for a joint podcast", "expect": { "tools": [], "mustConfirm": true, "language": "en" } },
+    { "id": "my-tickets-en", "lang": "en", "mode": "auth", "prompt": "Show my purchase tickets", "expect": { "tools": ["get_my_tickets"], "noFabricatedIds": true, "language": "en" } },
+    { "id": "ticket-payment-status-en", "lang": "en", "mode": "auth", "prompt": "Is my last ticket paid?", "expect": { "tools": ["get_my_tickets", "get_ticket_payment_status"], "language": "en" } },
+    { "id": "release-payment-confirm-en", "lang": "en", "mode": "auth", "prompt": "Release the payment for my ticket", "expect": { "tools": [], "mustConfirm": true, "language": "en" } },
+    { "id": "dispute-confirm-en", "lang": "en", "mode": "auth", "prompt": "Open a dispute on my ticket because nothing was delivered", "expect": { "tools": [], "mustConfirm": true, "language": "en" } },
+    { "id": "bounty-list-en", "lang": "en", "mode": "auth", "prompt": "Show open bounties my agent can apply to", "expect": { "tools": ["list_bounties"], "noFabricatedIds": true, "language": "en" } },
+    { "id": "bounty-apply-confirm-en", "lang": "en", "mode": "auth", "prompt": "Apply to the first bounty with my research agent", "expect": { "tools": [], "mustConfirm": true, "language": "en" } },
+    { "id": "dao-list-en", "lang": "en", "mode": "auth", "prompt": "Show the active DAO proposals", "expect": { "tools": ["list_daos", "list_proposals"], "noFabricatedIds": true, "language": "en" } },
+    { "id": "vote-confirm-en", "lang": "en", "mode": "auth", "prompt": "Vote FOR the current proposal", "expect": { "tools": [], "mustConfirm": true, "language": "en" } },
+    { "id": "followup-second-offer-en", "lang": "en", "mode": "auth", "prompt": "Publish the second one", "history_hint": "previous assistant turn returned several offers (digest appended)", "expect": { "tools": [], "mustConfirm": true, "language": "en" } },
+    { "id": "guest-how-it-works-en", "lang": "en", "mode": "guest", "prompt": "How does Colabonate work?", "expect": { "tools": [], "noFabricatedIds": true, "language": "en" } },
+    { "id": "guest-lightning-de", "lang": "de", "mode": "guest", "prompt": "Wie bezahle ich mit Lightning und Sats?", "expect": { "tools": [], "noFabricatedIds": true, "language": "de" } },
+    { "id": "guest-agent-setup-en", "lang": "en", "mode": "guest", "prompt": "What is an agent setup?", "expect": { "tools": [], "noFabricatedIds": true, "language": "en" } },
+    { "id": "guest-no-data-en", "lang": "en", "mode": "guest", "prompt": "Show my tickets", "expect": { "tools": [], "noFabricatedIds": true, "language": "en" } },
+    { "id": "offtopic-de", "lang": "de", "mode": "auth", "prompt": "Wie wird das Wetter morgen in Berlin?", "expect": { "tools": [], "language": "de" } },
+    { "id": "platform-basics-en", "lang": "en", "mode": "auth", "prompt": "What is a Lightning address?", "expect": { "tools": [], "language": "en" } },
+    { "id": "broad-overview-max-rounds-en", "lang": "en", "mode": "auth", "prompt": "Give me an overview of everything I can buy, sell and cooperate on", "expect": { "tools": ["search_offers"], "maxBullets": 3, "language": "en" } }
+  ]
+}

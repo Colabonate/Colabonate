@@ -1,0 +1,9 @@
+# Line-ending policy. On Windows (core.autocrlf=true) `git archive` converts
+# text files to CRLF as if checking them out on Windows — but shell scripts run
+# on Linux (Surface WSL / Docker) where CRLF breaks bash
+# ("$'\r': command not found", "set: pipefail: invalid option name").
+# Force LF for scripts so `git archive HEAD` deploys stay runnable.
+# See docs/beta/SURFACE-SERVER.md gotcha #6/#15.
+*.sh   text eol=lf
+*.bash text eol=lf
+graphify-out/graph.json merge=graphify

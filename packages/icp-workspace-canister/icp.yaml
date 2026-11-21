@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://github.com/dfinity/icp-cli/raw/refs/tags/v1.3.0/docs/schemas/icp-yaml-schema.json
+#
+# ADR-346: migrated from dfx.json (kept alongside until this is verified
+# working end-to-end, then dfx.json is removed).
+canisters:
+  - name: icp_workspace_canister
+    recipe:
+      type: "@dfinity/rust@v3.4.0"
+      configuration:
+        package: icp_workspace_canister
+        candid: icp_workspace_canister.did
+        shrink: true
+
+# Local gateway pinned to 4943 (not the icp-cli default 8000) — this dev
+# machine already has something else bound to 8000; 4943 also matches the
+# port every existing dfx-era doc/script in this repo already references.
+networks:
+  - name: local
+    mode: managed
+    gateway:
+      port: 4943

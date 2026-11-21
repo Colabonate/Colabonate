@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://github.com/dfinity/icp-cli/raw/refs/tags/v1.3.0/docs/schemas/icp-yaml-schema.json
+#
+# FU-572: `dfx.json` → `icp.yaml` migration (ADR-346), performed when this
+# canister entered its first active deploy phase (FU-619 testnet/live-replica
+# check, 2026-09-02). `dfx.json` is deliberately KEPT alongside: its
+# `defaults.bitcoin` regtest block has no `icp.yaml` equivalent and still
+# drives the README's regtest funding/payout E2E via `dfx start --enable-bitcoin`.
+# `icp deploy` needs no bitcoin adapter — the FU-619 certified-read surface
+# (`create_trade` + `get_trade_certified`) uses only t-ECDSA via the management
+# canister, which the local managed replica provides under `key_1`.
+canisters:
+  - name: icp_escrow_canister
+    recipe:
+      type: "@dfinity/rust@v3.4.0"
+      configuration:
+        package: icp_escrow_canister
+        candid: icp_escrow_canister.did
+        shrink: true
+
+# Local gateway pinned to 4943 (not the icp-cli default 8000 — this dev
+# machine already has something else bound to 8000). Same port choice as
+# packages/icp-workspace-canister/icp.yaml; only one local network runs at a
+# time, so the shared port is intentional.
+networks:
+  - name: local
+    mode: managed
+    gateway:
+      port: 4943

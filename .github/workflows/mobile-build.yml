@@ -1,0 +1,129 @@
+name: Mobile Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # No `cache: pnpm`: setup-node's cache-save post-step fails ("Path(s)
+          # ... do not exist") — npx pnpm (corepack pnpm 11) uses a different
+          # store path than pnpm/action-setup's pnpm 9. The build + artifact
+          # upload succeed; only the cache-save post-step fails, turning the job
+          # red. Dropping the cache keeps CI green.
+
+      - run: npx pnpm install --frozen-lockfile
+
+      # Generate design-system tokens (tokens.css is gitignored). Without this
+      # Vite fails: "Can't resolve '@ds/tokens/css/tokens.css'". Mirrors the app
+      # Dockerfile (node packages/tokens/scripts/build.js).
+      - run: npx pnpm tokens:build
+
+      - run: npx pnpm --filter colabonate-app build
+
+      - name: Make Capacitor resolvable from repo root
+        # capacitor.config.ts lives at the repo root, so cap must run there.
+        # @capacitor/* are deps of apps/colabonate-app but pnpm does not hoist
+        # them to the workspace root; install the CLI + platform package at the
+        # workspace root in the ephemeral runner so `npx cap` resolves from the
+        # repo root (where the config + webDir live). No committed lockfile change.
+        run: npx pnpm add -wD @capacitor/cli@8.4.1 @capacitor/core@8.4.1 @capacitor/android@8.4.1
+
+      - name: Capacitor add + sync
+        # FU-190-A: native dirs are gitignored; create them fresh each run,
+        # then sync the web build into them. Run cap from the repo root where
+        # capacitor.config.ts lives (webDir = apps/colabonate-app/dist).
+        run: npx cap add android && npx cap sync android
+
+      - name: Setup Java 21
+        # Capacitor 8 (@capacitor/android 8.x) targets source/release 21; the
+        # ubuntu-latest default JDK is 17 -> 'invalid source release: 21'.
+        id: setup-java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Build Android APK
+        working-directory: android
+        env:
+          JAVA_HOME: ${{ steps.setup-java.outputs.path }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: colabonate-android-debug
+          path: android/app/build/outputs/apk/debug/*.apk
+          # Artifact storage quota is shared org-wide; keep the window short.
+          retention-days: 3
+
+  build-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # No `cache: pnpm` here: setup-node's cache-save post-step fails on
+          # macOS ("Path(s) ... do not exist") and fails the whole job even
+          # though the xcodebuild succeeds.
+
+      - run: npx pnpm install --frozen-lockfile
+
+      # Generate design-system tokens (tokens.css is gitignored). Without this
+      # Vite fails: "Can't resolve '@ds/tokens/css/tokens.css'". Mirrors the app
+      # Dockerfile (node packages/tokens/scripts/build.js).
+      - run: npx pnpm tokens:build
+
+      - run: npx pnpm --filter colabonate-app build
+
+      - name: Make Capacitor resolvable from repo root
+        # capacitor.config.ts lives at the repo root, so cap must run there.
+        # @capacitor/* are deps of apps/colabonate-app but pnpm does not hoist
+        # them to the workspace root; install the CLI + platform package at the
+        # workspace root in the ephemeral runner so `npx cap` resolves from the
+        # repo root (where the config + webDir live). No committed lockfile change.
+        run: npx pnpm add -wD @capacitor/cli@8.4.1 @capacitor/core@8.4.1 @capacitor/ios@8.4.1
+
+      - name: Capacitor add + sync
+        # FU-190-A: native dirs are gitignored; create them fresh each run,
+        # then sync the web build into them. Run cap from the repo root where
+        # capacitor.config.ts lives (webDir = apps/colabonate-app/dist).
+        run: npx cap add ios && npx cap sync ios
+
+      - name: Build iOS (no signing)
+        working-directory: ios/App
+        run: |
+          xcodebuild build \
+            -scheme App \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO | xcpretty
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: colabonate-ios-debug-build
+          path: ios/App/build/Build/Products/Debug-iphonesimulator/*.app
+          retention-days: 3

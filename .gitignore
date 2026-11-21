@@ -1,0 +1,179 @@
+node_modules/
+dist/
+.next/
+.DS_Store
+*.local
+
+# Knowledge graph (generated, never commit)
+graphify-out/
+
+# Environment (never commit secrets)
+.env
+.env.local
+.env.beta
+.env.beta.local
+.env.production
+.env.dev.backup
+.env*.bak
+# Any timestamped/suffixed variant of an env backup (e.g.
+# `.env.production.bak-20260920T214620Z` or `.env.production.<ts>.bak`): the
+# `*.bak` / `.env*.bak` rules above only match names ENDING in `.bak`, so a
+# backup helper that appends a suffix after `.bak` would otherwise leave a
+# plaintext-secret file stageable. Belt and braces for any helper that backs up
+# an env file by suffixing it (ADR-387).
+.env*.bak*
+# Agent/tool configs (machine-specific — each machine keeps its own local copy,
+# never synced: Windows/Linux setups must not overwrite each other)
+.agents/
+.claude/
+.codex/
+.kilo/
+.opencode/
+.qwen/
+
+# Local Surface backup bundles (written by scripts/beta/redeploy-surface.sh — gitignored, kept on disk)
+backups/
+# dfx/icp local canister state (replica + network identity, machine-specific)
+.dfx/
+.icp/
+
+# SQLite Dev-Datenbank (wird lokal generiert)
+dev.db
+*.db-journals
+*.db-wal
+*.db-shm
+
+# Generated token output (wird per Script erzeugt)
+packages/tokens/css/tokens.css
+
+# Generated seed fixtures (written by apps/server/scripts/seed-*.ts)
+seed-*.json
+
+# Build artifacts
+tsconfig.tsbuildinfo
+.migration-snapshot
+
+# Local scratch dirs (created by ad-hoc agent sessions, never commit)
+.tmp*/
+tmp/
+scratch/
+
+# Playwright MCP browser-automation artifacts (session logs/profiles, never commit)
+.playwright-mcp/
+
+# Capacitor native projects (platform-specific, regenerated via `cap add`)
+android/
+ios/
+
+# Generated TS build artifacts in source-only workspace packages.
+# These packages are consumed via index.ts (Vite transpiles the .tsx/.ts live);
+# committing tsc output next to the source caused stale-code bugs where an old
+# .js (e.g. slider-list.js) shadowed the current .tsx.
+packages/ui/**/*.js
+packages/ui/**/*.js.map
+packages/ui/**/*.d.ts
+packages/ui/**/*.d.ts.map
+packages/utils/**/*.js
+packages/utils/**/*.js.map
+packages/utils/**/*.d.ts
+packages/utils/**/*.d.ts.map
+packages/tokens/index.js
+packages/tokens/index.js.map
+packages/tokens/index.d.ts
+packages/tokens/index.d.ts.map
+packages/cashu-wallet/**/*.js
+packages/cashu-wallet/**/*.js.map
+packages/cashu-wallet/**/*.d.ts
+packages/cashu-wallet/**/*.d.ts.map
+packages/data/**/*.js
+packages/data/**/*.js.map
+packages/data/**/*.d.ts
+packages/data/**/*.d.ts.map
+packages/nostr-schema/**/*.js
+packages/nostr-schema/**/*.js.map
+packages/nostr-schema/**/*.d.ts
+packages/nostr-schema/**/*.d.ts.map
+packages/payments/**/*.js
+packages/payments/**/*.js.map
+packages/payments/**/*.d.ts
+packages/payments/**/*.d.ts.map
+
+# Generated tsc build artifacts in apps (tracked .d.ts/.js files excepted below).
+apps/**/*.js
+apps/**/*.js.map
+apps/**/*.d.ts
+apps/**/*.d.ts.map
+!apps/colabonate-app/src/types/ethereum.d.ts
+!apps/colabonate-app/src/types/json.d.ts
+!apps/colabonate-app/public/*.js
+!apps/colabonate-app/src/types/webln.d.ts
+!apps/colabonate-app/src/vite-env.d.ts
+!apps/playground/src/global.d.ts
+!apps/playground/src/vite-env.d.ts
+
+# Root tsc outputs (tracked .js files excepted below)
+/*.js
+/*.js.map
+/*.d.ts
+/*.d.ts.map
+!mock-login.js
+!patch_useEntity.js
+/capacitor.config.js
+/capacitor.config.js.map
+/capacitor.config.d.ts
+/capacitor.config.d.ts.map
+
+# Scripts and prisma tsc outputs
+/scripts/**/*.js
+/scripts/**/*.js.map
+/scripts/**/*.d.ts
+/scripts/**/*.d.ts.map
+/prisma/*.js
+/prisma/*.js.map
+/prisma/*.d.ts
+/prisma/*.d.ts.map
+
+# E2E test tsc outputs
+/tests/**/*.js
+/tests/**/*.js.map
+/tests/**/*.d.ts
+/tests/**/*.d.ts.map
+
+# DB backups
+prisma/dev.db.bak.*
+
+# macOS
+Thumbs.db
+Desktop.ini
+*.lnk
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Temporäre Dateien
+*.tmp
+*.bak
+*.swp
+*.orig
+implementation_plans/
+.mcp.json
+
+# Nested fork repo (eigenständiges Git-Repo, kein Submodul)
+nostr-nips-fork/
+
+# Lokale Research-Materials (Signal-Gruppen-Replies, Roh-Daten, Memos)
+research/
+
+# Playwright run artifacts (local reports + failure contexts)
+playwright-live-report/
+playwright-report/
+test-results/
+
+# ZCode session/harness directory (local agent tooling, not project code)
+.zcode/
+colabonate-public/
+
+# Python
+__pycache__/
+*.pyc

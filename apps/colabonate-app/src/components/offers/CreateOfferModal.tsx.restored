@@ -1,0 +1,349 @@
+import { useState, useMemo } from 'react'
+import {
+  Alert,
+  Box,
+  Button,
+  Grid,
+  IconButton,
+  InputAdornment,
+  MenuItem,
+  Paper,
+  TextField,
+  Typography,
+} from '@mui/material'
+import { Modal, ModalHeader, ModalContent, ModalActions } from '@ds/ui'
+import BoltIcon          from '@mui/icons-material/Bolt'
+import DeleteIcon        from '@mui/icons-material/Delete'
+import InfoOutlinedIcon  from '@mui/icons-material/InfoOutlined'
+import OpenInNewIcon     from '@mui/icons-material/OpenInNew'
+import PlaceIcon         from '@mui/icons-material/Place'
+import { useNavigate } from 'react-router-dom'
+import { apiCall } from '../../lib/api'
+import { ImageUploadInput } from './ImageUploadInput'
+import { CATEGORIES, DEFAULT_MILESTONES, offerTypeFromCategory, type MilestoneFormItem } from './offerFormConstants'
+import { OfferTypeIntro } from './OfferTypeIntro'
+
+interface CreateOfferModalProps {
+  open: boolean
+  onClose: () => void
+  /** Called after a new offer was successfully created */
+  onCreated?: () => void
+}
+
+const DEMO_PUBKEYS = ['test-buyer-pubkey']
+
+export function CreateOfferModal({ open, onClose, onCreated }: CreateOfferModalProps) {
+  const navigate = useNavigate()
+  const [submitting, setSubmitting] = useState(false)
+
+  const [dialogError, setDialogError] = useState<string | null>(null)
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    priceSats: '',
+    category: 'Goods',
+    location: '',
+    ticketType: 'SMART_ORDER' as 'SMART_ORDER' | 'MILESTONE',
+    imageUrl: '',
+  })
+  const [milestoneItems, setMilestoneItems] = useState<MilestoneFormItem[]>(DEFAULT_MILESTONES)
+
+  const userPubkey = localStorage.getItem('pubkey')
+
+  const milestonePercentageSum = useMemo(
+    () => milestoneItems.reduce((s, m) => s + (m.percentage || 0), 0),
+    [milestoneItems]
+  )
+  const milestoneValid = formData.ticketType !== 'MILESTONE' || milestonePercentageSum === 100
+
+  function reset() {
+    setFormData({ title: '', description: '', priceSats: '', category: 'Goods', location: '', ticketType: 'SMART_ORDER', imageUrl: '' })
+    setMilestoneItems(DEFAULT_MILESTONES)
+  }
+
+  function handleClose() {
+    reset()
+    setDialogError(null)
+    onClose()
+  }
+
+  function handleSwitchToFullForm() {
+    navigate('/offers/new', { state: { prefill: formData, milestoneItems } })
+    handleClose()
+  }
+
+  function updateMilestone(i: number, field: keyof MilestoneFormItem, value: string | number) {
+    setMilestoneItems(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: value } : m))
+  }
+
+  async function handleConfirm() {
+    if (!milestoneValid) return
+    if (!userPubkey || DEMO_PUBKEYS.includes(userPubkey)) {
+      setDialogError('Demo mode: Offer creation is disabled. Please log in with a real wallet to create offers.')
+      return
+    }
+    setSubmitting(true)
+    try {
+      const offerType = offerTypeFromCategory(formData.category)
+      const body: Record<string, unknown> = {
+        title: formData.title,
+        description: formData.description,
+        priceSats: parseInt(formData.priceSats),
+        category: formData.category,
+        location: formData.location || undefined,
+        ticketType: formData.ticketType,
+        offerType,
+        creatorPubkey: userPubkey,
+        images: formData.imageUrl ? [formData.imageUrl] : [],
+      }
+      if (formData.ticketType === 'MILESTONE') {
+        body.milestones = milestoneItems.map((m, i) => ({ ...m, sortOrder: i }))
+      }
+      const response = await apiCall('/api/offers', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      })
+      if (response.ok) {
+        reset()
+        onClose()
+        onCreated?.()
+      }
+    } catch (error) {
+      console.error('Failed to create offer:', error)
+      setDialogError('Failed to create offer. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <>
+    <Modal open={open} onClose={handleClose} size="md">
+      <ModalHeader title="Create New Offer" onClose={handleClose} />
+      <ModalContent>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+
+          {/* Order Type Selection */}
+          <OfferTypeIntro
+            selectedType={formData.ticketType}
+            onSelect={(t) => setFormData({ ...formData, ticketType: t })}
+          />
+
+          {/* Quick-create hint banner */}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 1.5,
+              p: 1.5,
+              borderRadius: 'var(--radius-md, 8px)',
+              bgcolor: 'action.hover',
+              border: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+              <InfoOutlinedIcon fontSize="small" sx={{ color: 'text.secondary', mt: 0.25, flexShrink: 0 }} />
+              <Box>
+                <Typography variant="caption" fontWeight={600} color="text.primary" display="block">
+                  Quick Create
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Essential fields only. For multiple photos, full address, and category search, switch to the full form.
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              size="small"
+              variant="outlined"
+              endIcon={<OpenInNewIcon fontSize="small" />}
+              onClick={handleSwitchToFullForm}
+              sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+            >
+              Full Form
+            </Button>
+          </Box>
+
+          <TextField
+            label="Title"
+            value={formData.title}
+            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+            placeholder="e.g. Organic Apple Juice from Miller Farm"
+            required
+            fullWidth
+          />
+          <TextField
+            label="Description"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Describe your product or service…"
+            multiline
+            rows={3}
+            required
+            fullWidth
+          />
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                label="Price (Sats)"
+                type="number"
+                value={formData.priceSats}
+                onChange={(e) => setFormData({ ...formData, priceSats: e.target.value })}
+                placeholder="5000"
+                inputProps={{ min: 1 }}
+                required
+                fullWidth
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <BoltIcon fontSize="small" color="primary" />
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                label="Category"
+                select
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                fullWidth
+              >
+                {CATEGORIES.map(cat => (
+                  <MenuItem key={cat} value={cat}>{cat}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+          </Grid>
+
+          {/* Location */}
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
+              Location
+            </Typography>
+            <TextField
+              label="ZIP / Postal Code (optional)"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              placeholder="e.g. 80331, SW1A, 10001, 75008"
+              fullWidth
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PlaceIcon fontSize="small" color="action" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+              Helps buyers find local offers. Any format works — ZIP (US), PLZ (DE), postcode (UK), etc.
+            </Typography>
+          </Box>
+
+          {/* Offer Image */}
+          <Box>
+            <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
+              Offer Image
+            </Typography>
+            <ImageUploadInput
+              value={formData.imageUrl}
+              onChange={(dataUrl) => setFormData({ ...formData, imageUrl: dataUrl })}
+              onClear={() => setFormData({ ...formData, imageUrl: '' })}
+            />
+          </Box>
+
+          {/* Milestone Editor */}
+          {formData.ticketType === 'MILESTONE' && (
+            <Box>
+              <Typography variant="subtitle2" fontWeight={600} color="text.secondary" gutterBottom>
+                Milestones
+              </Typography>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                {milestoneItems.map((m, i) => (
+                  <Paper key={i} variant="outlined" sx={{ p: 1.5 }}>
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                      <Typography variant="caption" fontWeight={700} color="primary.main" sx={{ pt: 1, minWidth: 20 }}>
+                        {i + 1}.
+                      </Typography>
+                      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <TextField
+                          label="Title"
+                          value={m.title}
+                          onChange={e => updateMilestone(i, 'title', e.target.value)}
+                          size="small"
+                          required
+                          fullWidth
+                        />
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <TextField
+                            label="Description (optional)"
+                            value={m.description}
+                            onChange={e => updateMilestone(i, 'description', e.target.value)}
+                            size="small"
+                            fullWidth
+                          />
+                          <TextField
+                            label="%"
+                            type="number"
+                            value={m.percentage}
+                            onChange={e => updateMilestone(i, 'percentage', parseInt(e.target.value) || 0)}
+                            size="small"
+                            inputProps={{ min: 1, max: 100 }}
+                            sx={{ width: 80 }}
+                            required
+                          />
+                        </Box>
+                      </Box>
+                      {milestoneItems.length > 1 && (
+                        <IconButton
+                          size="small"
+                          onClick={() => setMilestoneItems(prev => prev.filter((_, idx) => idx !== i))}
+                          sx={{ mt: 0.5, color: 'text.disabled' }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      )}
+                    </Box>
+                  </Paper>
+                ))}
+              </Box>
+              <Box
+                component="button"
+                onClick={() => setMilestoneItems(prev => [...prev, { title: '', description: '', percentage: 0 }])}
+                sx={{ mt: 1, cursor: 'pointer', border: 'none', bgcolor: 'transparent', color: 'primary.main', fontSize: '0.875rem', p: 0 }}
+              >
+                + Add milestone
+              </Box>
+              <Alert severity={milestonePercentageSum === 100 ? 'success' : 'warning'} sx={{ mt: 1 }}>
+                Total: {milestonePercentageSum}% {milestonePercentageSum === 100 ? '✓' : `– ${100 - milestonePercentageSum}% remaining`}
+              </Alert>
+            </Box>
+          )}
+        </Box>
+      </ModalContent>
+      {dialogError && (
+        <Box sx={{ px: 3, pb: 1 }}>
+          <Alert severity="error" onClose={() => setDialogError(null)}>
+            {dialogError}
+          </Alert>
+        </Box>
+      )}
+      <ModalActions
+        cancel={{ onClick: handleClose, children: 'Cancel', disabled: submitting }}
+        confirm={{
+          onClick: handleConfirm,
+          children: submitting ? 'Publishing…' : 'Publish Offer',
+          disabled: submitting || !milestoneValid,
+          loading: submitting,
+        }}
+      />
+    </Modal>
+    </>
+  )
+}

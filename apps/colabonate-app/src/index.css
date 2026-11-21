@@ -1,0 +1,710 @@
+@import "tailwindcss";
+@import "@ds/tokens/css/tokens.css";
+@import "@ds/tokens/css/typography.css";
+
+/* Tailwind v4 auto-detection only scans this app's own sources — classes used
+ * only inside @ds/ui components (packages/ui) would never be generated.
+ * Scan the design-system sources explicitly. */
+@source "../../packages/ui";
+
+/* ============================================================
+ * Semantische Theme-Aliases
+ * Neue Komponenten und Seiten nutzen var(--theme-*).
+ * Dadurch schaltet Dark/Light automatisch ohne theme-Prop.
+ * ============================================================ */
+
+/* ============================================================
+ * Light Mode (Default + Explicit)
+ * ============================================================ */
+:root,
+[data-theme="light"] {
+  --theme-bg:           var(--color-neutral-white);
+  --theme-bg-elevated:  var(--color-neutral-9);
+  --theme-bg-subtle:    var(--color-neutral-8);
+  --theme-bg-paper:     var(--color-neutral-white);
+  --theme-surface:      var(--color-neutral-white);
+  --theme-dropdown-bg:  var(--color-neutral-2);
+  --theme-scrolled-bg:  rgba(255, 255, 255, 0.82);
+  --theme-text:         var(--color-neutral-black);
+  --theme-text-muted:   var(--color-neutral-5);
+  --theme-text-secondary: var(--color-neutral-4);
+  --theme-border:       rgba(0, 0, 0, 0.08);
+  --theme-border-subtle: rgba(0, 0, 0, 0.04);
+  --theme-shadow:       0 2px 16px rgba(0, 0, 0, 0.08);
+  --theme-item-hover:   rgba(0, 0, 0, 0.05);
+
+  /* Modal glass / scrim (ADR-219 catalog dialogs).
+   * Light theme uses a fully opaque background so the dialog reads as a
+   * solid surface — the original translucent glass was too low-contrast
+   * against busy pages. Dark theme keeps the translucent glass. */
+  --theme-scrim-bg:     radial-gradient(circle at 50% 38%, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.38) 55%, rgba(0,0,0,0.28) 100%);
+  --theme-glass-bg:     rgb(255, 255, 255);
+  --theme-glass-border: var(--theme-border);
+  --theme-glass-blur:   0px;
+  --theme-scrim-blur:   8px;
+
+  /* Identity Level Colors - Light Mode */
+  --identity-anonymous-color: var(--theme-text-muted);
+  --identity-anonymous-bg: rgba(133, 140, 148, 0.10);
+  --identity-anonymous-border: rgba(133, 140, 148, 0.30);
+
+  /* Coop Guide "neutral" option accent (Private role, People executor).
+   * NOT var(--color-secondary-50) — that's a dark slate from the same
+   * family as the dark-theme background scale, so icon/chip text nearly
+   * disappears in dark mode. Defined per-theme like the identity-* colors
+   * below instead of a single fixed token across both themes. */
+  --coop-guide-neutral-color: #1976d2;
+  --coop-guide-neutral-bg: rgba(25, 118, 210, 0.08);
+
+  --identity-nostr-color: #1976d2;
+  --identity-nostr-bg: rgba(25, 118, 210, 0.08);
+  --identity-nostr-border: rgba(25, 118, 210, 0.30);
+  --identity-peer-color: #7b1fa2;
+  --identity-peer-bg: rgba(123, 31, 162, 0.08);
+  --identity-peer-border: rgba(123, 31, 162, 0.30);
+  --identity-hid-color: #e65100;
+  --identity-hid-bg: rgba(230, 81, 0, 0.08);
+  --identity-hid-border: rgba(230, 81, 0, 0.30);
+  
+  /* Review Stars - Light Mode */
+  --color-review-star: #ffc107;
+}
+
+/* ============================================================
+ * Dark Mode
+ * ============================================================ */
+[data-theme="dark"] {
+  --theme-bg:           var(--color-secondary-80);
+  --theme-bg-elevated:  var(--color-secondary-90);
+  --theme-bg-subtle:    var(--color-secondary-70);
+  --theme-bg-paper:     var(--color-secondary-80);
+  --theme-surface:      var(--color-secondary-80);
+  --theme-dropdown-bg:  var(--color-secondary-90);
+  --theme-scrolled-bg:  rgba(22, 27, 35, 0.82);
+  --theme-text:         var(--color-text-neutral-on-neutral);
+  --theme-text-muted:   var(--color-neutral-6);
+  --theme-text-secondary: var(--color-neutral-5);
+  --theme-border:       rgba(255, 255, 255, 0.08);
+  --theme-border-subtle: rgba(255, 255, 255, 0.04);
+  --theme-shadow:       0 4px 24px rgba(0, 0, 0, 0.35);
+  --theme-item-hover:   rgba(255, 255, 255, 0.07);
+
+  /* Modal glass / scrim (ADR-219 catalog dialogs) */
+  --theme-scrim-bg:     radial-gradient(circle at 50% 38%, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.58) 55%, rgba(0,0,0,0.48) 100%);
+  --theme-glass-bg:     rgba(30, 36, 44, 0.72);
+  --theme-glass-border: rgba(255, 255, 255, 0.10);
+  --theme-glass-blur:   20px;
+  --theme-scrim-blur:   10px;
+
+  /* Status-Farben für Dark Mode */
+  --color-status-info: #7fa8e8;
+  --color-status-info-bg: rgba(46, 90, 172, 0.2);
+  --color-status-success-bg: rgba(35, 202, 97, 0.15);
+  --color-status-warning: #ff8a80;
+  --color-status-warning-bg: rgba(156, 30, 28, 0.2);
+  --color-status-error-bg: rgba(218, 20, 20, 0.2);
+  --color-primary-10: rgba(232, 69, 65, 0.15);
+  
+  /* Identity Level Colors - Dark Mode */
+  --identity-nostr-color: #64b5f6;
+  --identity-nostr-bg: rgba(100, 181, 246, 0.12);
+  --identity-nostr-border: rgba(100, 181, 246, 0.40);
+  --identity-peer-color: #ba68c8;
+  --identity-peer-bg: rgba(186, 104, 200, 0.12);
+  --identity-peer-border: rgba(186, 104, 200, 0.40);
+  --identity-hid-color: #ffb74d;
+  --identity-hid-bg: rgba(255, 183, 77, 0.12);
+  --identity-hid-border: rgba(255, 183, 77, 0.40);
+  
+  /* Review Stars - Dark Mode */
+  --color-review-star: #ffd54f;
+  
+  /* Anonymous Level - Dark Mode */
+  --identity-anonymous-color: var(--theme-text-muted);
+  --identity-anonymous-bg: rgba(133, 140, 148, 0.10);
+  --identity-anonymous-border: rgba(133, 140, 148, 0.30);
+
+  /* Coop Guide "neutral" option accent (Private role, People executor) — Dark Mode */
+  --coop-guide-neutral-color: #64b5f6;
+  --coop-guide-neutral-bg: rgba(100, 181, 246, 0.12);
+}
+
+
+@layer base {
+  *, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  /* Global Content Width Constraint */
+  main > * {
+    max-width: 1440px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+}
+
+html {
+  overflow-x: clip;
+  background-color: var(--color-neutral-9) !important;
+  background-image:
+    radial-gradient(ellipse 100% 7% at 0% 0%, rgba(255, 119, 119, 0.134) 10%, transparent 50%),
+    radial-gradient(ellipse 20% 100% at 100% 100%, rgba(202, 202, 202, 0.384) 10%, transparent 50%) !important;
+  /* Smooth scroll base — Lenis enhances this for GSAP ScrollTrigger integration */
+  scroll-behavior: smooth;
+}
+
+/* ── Lenis Smooth Scroll ──────────────────────────────────────────────────── */
+/* When Lenis is active it hijacks wheel events and interpolates scroll.
+   The .lenis-locked class is added by Lenis on <html> — we hide the
+   native scrollbar while keeping it scrollable via Lenis. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+html.lenis {
+  overflow-y: scroll; /* keep native scrollbar present for accessibility */
+}
+
+/* Custom scrollbar — thin, subtle, matches the Colabonate theme */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(232, 69, 65, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 69, 65, 0.45);
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 69, 65, 0.25) transparent;
+}
+
+html[data-theme="dark"] {
+  background-color: var(--color-secondary-90) !important;
+  background-image:
+    radial-gradient(ellipse 90% 7% at 0% 0%, rgba(69, 4, 4, 0.174) 0%, transparent 90%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, rgba(0, 0, 0, 0.372) 0%, transparent 50%) !important;
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: clip;
+  background: transparent;
+  color: var(--theme-bg);
+  line-height: 1.5;
+}
+
+/* ── Card Entrance Animation ────────────────────────────────────────────── */
+/* Animates the individual `translate`/`scale` properties (NOT the `transform`
+   shorthand) so a card's resting `transform` — e.g. a selected `scale-105` /
+   `-translate-y-2` lift, or a hover transform — composes with the entrance
+   instead of being overridden by the animation. Same visual entrance. */
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    translate: -20px 0;
+    scale: 0.93;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+/* ── Agent card theme (AGENT_SETUP offers) ───────────────────────────────
+   Slow aurora "drift" glowing from the top of an agent card's background.
+   Gated by .agent-card-drift and disabled under prefers-reduced-motion so
+   the distinct green tint still reads but stays still for motion-sensitive
+   users. Green follows the Verified Agent Badge brand (ADR-315). */
+@keyframes agent-theme-drift {
+  0%   { opacity: 0.55; transform: translateY(0) scale(1); }
+  50%  { opacity: 1;    transform: translateY(6%) scale(1.04); }
+  100% { opacity: 0.55; transform: translateY(0) scale(1); }
+}
+.agent-card-drift {
+  animation: agent-theme-drift 9s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .agent-card-drift { animation: none; }
+}
+
+/* ── Login Flow Transition ───────────────────────────────────────────────── */
+/* Entrance for the active login tab / flow step. Plays whenever the element
+   mounts — on a tab switch (the panel wrapper is keyed by the active tab) or
+   on an in-tab state swap to a success / Lightning-link prompt screen.
+   Animates the individual translate/scale properties so a resting transform
+   composes with it instead of being overridden (same approach as card-enter). */
+@keyframes login-flow-enter {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+    scale: 0.985;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+.login-flow-enter {
+  animation: login-flow-enter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Login Divider Glow ─────────────────────────────────────────────────── */
+/* Decorative half-disc glow under the divider that separates "New to Nostr"
+   from the sign-in section (LoginTabs.tsx). Pulses subtly on opacity + scale
+   only, so it stays on the compositor and never affects layout. */
+@keyframes login-divider-glow-pulse {
+  0%, 100% { opacity: 0.55; scale: 0.96 1; }
+  50%      { opacity: 1;    scale: 1 1.04; }
+}
+
+.login-divider-glow {
+  transform-origin: 50% 0%;
+  animation: login-divider-glow-pulse 5.5s ease-in-out infinite;
+}
+
+/* ── Login Collapsible Triggers ─────────────────────────────────────────── */
+/* Shared hover affordance for the collapsible rows in the login section:
+   "New to Nostr?", "Need a signer?" and "What this unlocks". Hover tint only —
+   no resting background, so the flat sign-in surface stays unchanged. */
+.login-collapse-trigger {
+  border-radius: var(--radius-lg);
+  padding: 0.375rem 0.5rem;
+  margin-inline: -0.5rem;
+  transition: background-color 180ms ease, color 180ms ease;
+}
+
+.login-collapse-trigger:hover {
+  background-color: color-mix(in srgb, var(--color-primary-50) 8%, transparent);
+}
+
+/* ── Step-Complete Pop (ADR-268 D4) ──────────────────────────────────────── */
+/* Inline "section complete" confirmation rows in CreateOfferPage.tsx's guided
+   group steps. Mirrors the entrance FormStepper defines locally for its own
+   header dot indicators (packages/ui/form-stepper/form-stepper.tsx) — same
+   name/timing, kept separate per-layer rather than shared across the
+   packages/ui ↔ app boundary. */
+@keyframes step-complete-pop {
+  0%   { opacity: 0; scale: 0.5; }
+  60%  { opacity: 1; scale: 1.08; }
+  100% { opacity: 1; scale: 1; }
+}
+
+.step-complete-pop {
+  animation: step-complete-pop 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* ── Global Footer reveal ────────────────────────────────────────────────── */
+/* Performant fade-in for opacity + vertical position. Stays hidden (opacity 0)
+   until an IntersectionObserver adds .is-visible (see AppFooter); the transition
+   then runs on the compositor — no per-frame JS. Disabled under reduced-motion
+   via the media query below. */
+.footer-enter {
+  opacity: 0;
+  translate: 0 24px;
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              translate 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.footer-enter.is-visible {
+  opacity: 1;
+  translate: 0 0;
+}
+
+/* ── Polling Bar Keyframes ───────────────────────────────────────────────── */
+@keyframes polling-scan {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes polling-found {
+  0%, 65% { opacity: 1; }
+  100%     { opacity: 0; }
+}
+
+@keyframes polling-error-fade {
+  0%   { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+/* ── Notification Indicator ─────────────────────────────────────────────── */
+@keyframes notif-ping {
+  0%   { transform: scale(1);   opacity: 0.7; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ── Toast Snackbar ─────────────────────────────────────────────────────── */
+
+:root,
+[data-theme="light"] {
+  --snackbar-bg:     rgba(248, 249, 251, 0.88);
+  --snackbar-border: rgba(0, 0, 0, 0.07);
+  --snackbar-text:   var(--color-neutral-black);
+  --snackbar-muted:  var(--color-neutral-5);
+}
+
+[data-theme="dark"] {
+  --snackbar-bg:     rgba(14, 18, 28, 0.86);
+  --snackbar-border: rgba(255, 255, 255, 0.10);
+  --snackbar-text:   var(--color-text-neutral-on-neutral);
+  --snackbar-muted:  var(--color-neutral-6);
+}
+
+@keyframes snackbar-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.95);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+}
+
+@keyframes snackbar-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+    filter: blur(2px);
+  }
+}
+
+@keyframes snackbar-progress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+.snackbar-entering {
+  animation: snackbar-in 340ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.snackbar-exiting {
+  animation: snackbar-out 220ms cubic-bezier(0.55, 0, 0.9, 0.45) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snackbar-entering,
+  .snackbar-exiting,
+  .login-flow-enter {
+    animation: none !important;
+    opacity: 1;
+  }
+
+  .login-divider-glow {
+    animation: none !important;
+  }
+
+  .footer-enter {
+    opacity: 1 !important;
+    translate: 0 0 !important;
+    transition: none !important;
+  }
+
+  /* Disable smooth scroll when user prefers reduced motion */
+  html {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── App Splash (initial load, before React mounts) ──────────────────────── */
+#app-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  z-index: 9999;
+  pointer-events: none;
+  /* Kept in sync with the critical inline copy in index.html — see the
+     comments there for why this must be opaque and why the dark override
+     below is a hardcoded hex, not just a var() fallback. */
+  background: var(--theme-bg, #ffffff);
+  transition: opacity 240ms ease, visibility 0s linear 240ms;
+}
+
+html[data-theme="dark"] #app-splash { background: #252c33; }
+
+#app-splash.app-splash--hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+#app-splash .app-splash__logo {
+  width: 56px;
+  height: 56px;
+}
+
+#app-splash .app-splash__spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--theme-border, rgba(0, 0, 0, 0.08));
+  border-top-color: #e84541;
+  animation: app-splash-spin 0.9s linear infinite;
+}
+
+@keyframes app-splash-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app-splash .app-splash__spinner {
+    animation: none;
+  }
+}
+
+
+/* ============================================================
+ * AI Assistant chat markdown — chat-scale headings.
+ * typography.css binds h1–h6 to page-scale tokens as UN-layered
+ * element selectors; Tailwind utilities (@layer utilities) in
+ * MarkdownRenderer.tsx can never win against that. This scoped,
+ * un-layered override is the single authority for heading size
+ * inside chat bubbles.
+ * ============================================================ */
+.markdown-chat :is(h1, h2, h3, h4, h5, h6) {
+  letter-spacing: normal;
+}
+.markdown-chat h1 {
+  /* button-large tokens for the 18px step — texttransform is NOT applied */
+  font-size:   var(--typography-button-large-fontsize);
+  font-weight: var(--typography-button-large-fontweight);
+  line-height: var(--typography-button-large-lineheight);
+}
+.markdown-chat h2 {
+  font-size:   var(--typography-paragraph-base-heavy-fontsize);
+  font-weight: var(--typography-paragraph-base-heavy-fontweight);
+  line-height: var(--typography-paragraph-base-heavy-lineheight);
+}
+.markdown-chat :is(h3, h4, h5, h6) {
+  font-size:   var(--typography-link-small-fontsize);
+  font-weight: var(--typography-link-small-fontweight);
+  line-height: var(--typography-link-small-lineheight);
+}
+
+/* ============================================================
+ * ADR-295 — Rich text descriptions (editor + sanitized render).
+ * Shared by .rich-text-content (render surfaces) and the
+ * .rich-description-editor ProseMirror surface. typography.css
+ * binds h1–h6 page-scale tokens as un-layered element selectors,
+ * so headings here inherit the correct scale automatically.
+ * ============================================================ */
+.rich-text-content,
+.rich-description-editor .ProseMirror {
+  color: var(--theme-text);
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.rich-text-content p,
+.rich-description-editor .ProseMirror p {
+  margin: 0 0 0.5em;
+}
+
+.rich-text-content p:last-child,
+.rich-description-editor .ProseMirror p:last-child {
+  margin-bottom: 0;
+}
+
+.rich-text-content :is(ul, ol),
+.rich-description-editor .ProseMirror :is(ul, ol) {
+  margin: 0 0 0.5em;
+  padding-left: 1.5em;
+}
+
+/* Tailwind preflight strips list markers — restore them explicitly
+ * (bullet / number characters must stay visible in both editor and render). */
+.rich-text-content ul,
+.rich-description-editor .ProseMirror ul {
+  list-style-type: disc;
+}
+
+.rich-text-content ol,
+.rich-description-editor .ProseMirror ol {
+  list-style-type: decimal;
+}
+
+.rich-text-content ul ul,
+.rich-description-editor .ProseMirror ul ul {
+  list-style-type: circle;
+}
+
+.rich-text-content ol ol,
+.rich-description-editor .ProseMirror ol ol {
+  list-style-type: lower-alpha;
+}
+
+.rich-text-content li,
+.rich-description-editor .ProseMirror li {
+  margin: 0.15em 0;
+}
+
+.rich-text-content ::marker,
+.rich-description-editor .ProseMirror ::marker {
+  color: var(--theme-text-muted);
+}
+
+.rich-text-content a,
+.rich-description-editor .ProseMirror a {
+  color: var(--color-primary-50);
+  text-decoration: underline;
+}
+
+.rich-description-editor .ProseMirror {
+  outline: none;
+  min-height: 120px;
+}
+
+/* ── ADR-295 D6 media: inline images ─────────────────────────────── */
+.rich-text-content img,
+.rich-description-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--theme-border);
+  margin: 0.25em 0;
+  vertical-align: middle;
+}
+
+/* Selected image inside the editor (Tiptap node-selection class). */
+.rich-description-editor .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--color-primary-40);
+  outline-offset: 2px;
+}
+
+/* ── ADR-295 D6 media: video embed cards ───────────────────────────
+ * Rendered by transformVideoEmbeds() from whitelisted hosts only —
+ * iframes never come from stored HTML directly. 16:9 responsive. */
+.rich-text-content .video-embed {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 0.5em 0;
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  border: 1px solid var(--theme-border);
+  background: var(--theme-bg);
+}
+
+.rich-text-content .video-embed iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+/* Inside the EDITOR a video link stays a link — hint it with a ▶ prefix
+ * (same host patterns transformVideoEmbeds() recognizes). */
+.rich-description-editor .ProseMirror a[href*="youtube.com/watch"]::before,
+.rich-description-editor .ProseMirror a[href*="youtu.be/"]::before,
+.rich-description-editor .ProseMirror a[href*="youtube.com/shorts/"]::before,
+.rich-description-editor .ProseMirror a[href*="vimeo.com/"]::before {
+  content: "▶ ";
+  font-size: 0.8em;
+  color: var(--color-primary-50);
+}
+
+/* ── ADR-324 FU-410: FAB fade during Home dock approach ─────────────
+ * While any pixel of the Home scroll-dock preview is in the viewport,
+ * CoopDockSection sets `data-dock-approach` on <body> and fixed FAB
+ * layers (`.fab-layer`) drop out so they don't cover the preview.
+ * Uses `visibility` (not `opacity`) because useScrollVanish drives
+ * inline `opacity`/`pointer-events`, which would beat this rule. */
+/* ── Coop Guide: extra breathing room below description paragraphs ───────
+ * Every guide step (Role/Type, Classification, Details, …) renders its
+ * section descriptions as MUI `Typography variant="caption"` blocks.
+ * Scoped to `.coop-guide-page` (set on the guide's PageContainer) so no
+ * other page is affected. The class is repeated to out-specificity MUI's
+ * own emotion-generated `.MuiTypography-caption` rule without `!important`.
+ * Vertical margin is a no-op on inline captions used as inline badges/
+ * labels (display stays the browser default `span`), so this only takes
+ * effect on captions the components already render with `display: block`.
+ * No margin-top: most of these captions are subtext sitting directly under
+ * a bold label/heading and must stay visually tight to it — only the gap
+ * before the next control (input, chip row, next section) grows. */
+.coop-guide-page .MuiTypography-caption.MuiTypography-caption {
+  margin-bottom: var(--spacing-16);
+}
+
+/* Exception: the "Section X of 4" eyebrow label sits directly above its
+ * section title (two-line stacked header, not a paragraph) — must stay
+ * tight to it. Triple class beats the double-class rule above. */
+.coop-guide-page .MuiTypography-caption.MuiTypography-caption.guide-eyebrow-label {
+  margin-bottom: 0;
+}
+
+/* Exception: the Agent Pipeline header subtitle (OrchestrationStepsEditor)
+ * sits under its title inside a flex row centered against the 32px icon
+ * badge — the rhythm margin would inflate the text block and push the
+ * visible lines out of alignment with the badge. Same triple-class
+ * override as the eyebrow label above. */
+.coop-guide-page .MuiTypography-caption.MuiTypography-caption.agent-pipeline-subtitle {
+  margin-bottom: 0;
+}
+
+body[data-dock-approach] .fab-layer {
+  visibility: hidden;
+}
+
+/* ── Home AI sections (AI Assistant + Connect your own agent) ─────────────── */
+/* Ghost CTA with the search-hero glow (pulsing at rest, steady + stronger on
+   hover) and the yellow AI-accent chips with lift/press states. */
+@keyframes aiPromoGlow {
+  0%, 100% { box-shadow: 0 0 4px 0 color-mix(in srgb, var(--ai-btn-glow, var(--color-primary-50)) 35%, transparent); }
+  50%      { box-shadow: 0 0 12px 2px color-mix(in srgb, var(--ai-btn-glow, var(--color-primary-50)) 55%, transparent); }
+}
+.ai-promo-btn { animation: aiPromoGlow 2.4s ease-in-out infinite; }
+.ai-promo-btn:hover { animation: none; box-shadow: 0 0 16px 3px color-mix(in srgb, var(--ai-btn-glow, var(--color-primary-50)) 60%, transparent); }
+.ai-promo-chip { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease; }
+.ai-promo-chip:hover { transform: translateY(-2px); border-color: #eab308 !important; background: color-mix(in srgb, #eab308 10%, transparent); box-shadow: 0 0 12px 1px color-mix(in srgb, #eab308 45%, transparent); }
+.ai-promo-chip:active { transform: translateY(0) scale(0.96); box-shadow: 0 0 4px 0 color-mix(in srgb, #eab308 40%, transparent); }
+.ai-promo-chip:focus-visible { outline: 2px solid #eab308; outline-offset: 2px; }
+/* Small assistant icons drifting down through the AI-accent glow and fading out
+   over the glow's height — subtle, staggered, infinite. */
+.ai-divider-fall {
+  position: absolute;
+  top: 0;
+  display: block;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-name: aiIconFall;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+  animation-iteration-count: infinite;
+}
+@keyframes aiIconFall {
+  0%   { transform: translateY(0); opacity: 0; }
+  12%  { opacity: 0.45; }
+  60%  { opacity: 0.32; }
+  100% { transform: translateY(48px); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-promo-btn { animation: none; }
+  .ai-promo-chip, .ai-promo-chip:hover, .ai-promo-chip:active { transition: none; transform: none; }
+  .ai-divider-fall { animation: none; opacity: 0; }
+}

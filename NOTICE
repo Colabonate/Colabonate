@@ -1,0 +1,56 @@
+# NOTICE
+
+This repository is licensed under the [MIT License](LICENSE) (see `LICENSE`). This file
+lists third-party content and attribution that a distributor should carry along.
+
+## Fonts
+
+The web build loads the following typefaces, and the whitepaper PDFs **embed** them as
+subsets. All are licensed under the **SIL Open Font License 1.1** — the licence text and
+the copyright notice must travel with any redistribution of the rendered artwork.
+
+| Font | Where | Copyright |
+|---|---|---|
+| **Inter** | `packages/tokens` → `--typography-fontfamily-inter` (web UI) | Copyright (c) 2016 The Inter Project Authors |
+| **Source Code Pro** | `packages/tokens` → `--typography-fontfamily-mono` (web UI) | Copyright (c) 2014-2022 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source' |
+| **Barlow** | `packages/tokens` → `--typography-fontfamily-barlow`; `scripts/build-whitepaper-pdf.mjs` → whitepaper PDF body (embedded) | Copyright 2017 The Barlow Project Authors |
+| **Poppins** | `scripts/build-whitepaper-pdf.mjs` → whitepaper PDF cover (embedded) | Copyright 2018 The Poppins Project Authors |
+
+The web fonts are requested from Google Fonts at build time and are not vendored in this
+repository; the PDF toolchain fetches and embeds them when it renders a document.
+
+## Icons
+
+- **Material Design icons** via [`@mui/icons-material`](https://www.npmjs.com/package/@mui/icons-material)
+  (MIT licence for the package; the icon artwork is Apache 2.0, Copyright Google LLC).
+  The package ships the icon geometry as React components and SVG paths — no icon font
+  file is vendored in this repository.
+
+## Protocol and specification text
+
+- **Nostr Improvement Proposals** (NIP-01, NIP-05, NIP-07, NIP-15, NIP-16, NIP-17, NIP-22,
+  NIP-44, NIP-46, NIP-51, NIP-52, NIP-57, NIP-59, NIP-60, NIP-61, NIP-85, NIP-89, NIP-99,
+  NIP-115) are quoted and adapted in `docs/protocols/` and `docs/nip-publications/`.
+  NIP text is in the public domain or MIT-licensed by its authors.
+- **Colabonate Protocol Specification** (`docs/protocols/`) is MIT licensed. The canonical
+  copy is maintained in
+  [`Colabonate/Colabonate_Protocol`](https://github.com/Colabonate/Colabonate_Protocol).
+- **Open Markets specification** (`https://github.com/OpenMarketsFoundation/specification`,
+  MIT licence) is analysed in `docs/gamma-markets-analysis/` and quoted with attribution
+  there. Our contributions to that workspace are made by pull request, not by copying its
+  text into this repository.
+
+## Category and taxonomy data
+
+- `packages/data/categories/gamma-map-v1.json` and `gamma-map-v2.json` map the
+  counterpart's commerce category vocabulary onto the Colabonate standard category axis
+  (ADR-277, ADR-380). They are **derived data** and are covered by this repository's MIT
+  licence; the source vocabulary belongs to the Open Markets specification and is
+  referenced, not redistributed.
+
+## Colabonate trademarks and brand assets
+
+`apps/colabonate-app/src/assets/` (wordmark, icon, glow) and the design tokens in
+`packages/tokens/` are original work of the Colabonate project and are covered by the MIT
+licence. The Colabonate name and logo are not licensed by the MIT licence and remain the
+property of the Colabonate Foundation. Attribution is welcome but not required.

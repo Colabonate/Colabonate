@@ -1,0 +1,22 @@
+{
+  "canisters": {
+    "icp_escrow_canister": {
+      "type": "rust",
+      "package": "icp_escrow_canister",
+      "candid": "icp_escrow_canister.did"
+    }
+  },
+  "defaults": {
+    "bitcoin": {
+      "enabled": true,
+      "nodes": ["127.0.0.1:18444"]
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:4943",
+      "type": "ephemeral"
+    }
+  },
+  "version": 1
+}

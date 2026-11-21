@@ -1,0 +1,2954 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProfileVisibility {
+  PUBLIC
+  PSEUDO_PRIVATE
+  PRIVATE
+}
+
+// ADR-152: Trade visibility for Offers, Cooperations, Tickets.
+// PUBLIC = visible in public feed + reputation-gated (default).
+// PRIVATE = NIP-17 DM only, no reputation, no global index.
+enum TradeVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+// ADR-152: Dispute mode for Tickets in private mode.
+// PUBLIC = DAO-Council can arbitrate (default, L1+ required).
+// PRIVATE = Mutual Arbiter via DM (both parties nominate, sign verdict).
+// NONE = No dispute protection (acceptable in private mode with warning).
+enum DisputeMode {
+  PUBLIC
+  PRIVATE
+  NONE
+}
+
+// OfferStatus: volatile enum → String with app-level zod validation (ADR-139)
+// Values: DRAFT | ACTIVE | CLOSED | ARCHIVED
+
+// TicketStatus: volatile enum → String with app-level zod validation (ADR-139)
+// Values: PENDING | INTEREST_SENT | ACCEPTED | PAID | IN_PROGRESS | COMPLETED | DISPUTED | ARBITRATION_LOST | ARBITRATION_WON | CANCELLED
+
+enum TicketType {
+  SMART_ORDER
+  MILESTONE
+  DISPUTE
+  GOVERNANCE
+  VERIFICATION
+  ROYALTY
+}
+
+// EscrowStatus: volatile enum → String with app-level zod validation (ADR-139)
+// Values: NONE | INITIATED | PHASE_1_PENDING | RESERVED | PHASE_2_PENDING | DELIVERY_STARTED | PHASE_3_PENDING | DELIVERY_CONFIRMED | RELEASED | CANCELLED | DISPUTED | FUNDED | RELEASE_PHASE_1 | RELEASE_PHASE_2 | RELEASE_PHASE_3 | RELEASED_FULL | REFUNDED
+
+enum WalletProvider {
+  LIGHTSPARK
+  LNBITS
+  WEBLN
+  MOCK
+  // ADR-187 / FU-46 — non-custodial Cashu eCash wallet. Metadata-only: the
+  // wallet itself lives in NIP-60 events on Nostr relays (D1 invariant —
+  // server never holds proofs); this enum value lets server-side features
+  // (notifications, analytics, future mint-down alerts) recognise users who
+  // opted in via the client-side VITE_CASHU_ENABLED + usePref gate.
+  CASHU
+  // ADR-197 — Beta mode simulated ledger (BETA_MODE=true only, never on mainnet).
+  // balanceSats holds the demo balance; no external wallet is created.
+  DEMO
+  // ADR-208 — Non-custodial Nostr Wallet Connect (NIP-47). The connection URI
+  // (with its spend-capable ephemeral secret) is stored encrypted at rest in
+  // nwcConnectionUriEnc; the pubkey/relays are plaintext for display. NWC is
+  // the user's spending wallet (a peer of WEBLN/CASHU), NOT a PaymentProvider.
+  NWC
+  // ADR-228 — OAuth-derived wallet backed by the user's Alby account (normal
+  // invoices/payments only — no hold-invoice support, see AlbyOauthToken and
+  // services/albyOauthProvider.ts). A peer of NWC/WEBLN/CUSTODIAL, not a
+  // replacement — see the compound unique below.
+  ALBY_OAUTH
+}
+
+enum WalletMode {
+  CUSTODIAL
+  NON_CUSTODIAL
+}
+
+enum WalletStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+// ADR-160 (PROB-003 B-γ): per-user strategy for how trade visibility maps to
+// wallet mode. The single decision function is `resolveWalletMode()` in
+// apps/server/services/walletStrategy.ts.
+enum WalletModeStrategy {
+  HYBRID // default: PRIVATE→CUSTODIAL (sub-wallet isolation), PUBLIC→NON_CUSTODIAL (WebLN)
+  CUSTODIAL_ONLY // always custodial (most accessible; server holds keys)
+  NONCUSTODIAL_ONLY // always non-custodial (self-sovereignty; warns in PRIVATE mode)
+}
+
+// ADR-240 D1/D2: how a self-serve `<handle>@<domain>` Lightning Address mints
+// its invoice. The router serves the address; it never holds funds.
+//   EXTERNAL — proxy to the user's own LUD-16 address (`User.lnAddress`)
+//   NWC      — mint on the user's own NWC wallet (NIP-47 make_invoice)
+//   CASHU    — reserved (FU-240-C, npub.cash-style nutzap); not yet served
+enum LnAddressMode {
+  EXTERNAL
+  NWC
+  CASHU
+}
+
+enum OfferType {
+  SERVICE // 1x per buyer, seller must accept
+  PRODUCT // unlimited quantity, auto-accepted, corporate only
+  ITEM // single article, amount=1, auto-accept, private only (ADR-066)
+  COOP // Cooperation Offer (Listing)
+  AGENT_SETUP // bookable AI agent, configured via AgentProfile (ADR-305)
+}
+
+// ADR-340: one Catalog concept for both products and agent setups. PRODUCT
+// catalogs are Company-scoped (companyId set); AGENT_SETUP catalogs are
+// User-scoped (ownerPubkey set). See ADR-340 D1.
+enum CatalogType {
+  PRODUCT
+  AGENT_SETUP
+}
+
+// ADR-305/312: agent-setup pricing model. Only ONE_TIME is functionally
+// complete in V1 (behaves like SERVICE) — PER_HOUR/PER_TOKEN/SUBSCRIPTION
+// require the ADR-311 workspace canister + ADR-312 cycle-metering, neither
+// built yet; storing the value now lets sellers declare intent ahead of that.
+enum AgentBillingModel {
+  ONE_TIME
+  PER_HOUR
+  PER_TOKEN
+  SUBSCRIPTION
+}
+
+enum OfferSource {
+  LOCAL
+  REMOTE
+}
+
+enum MilestoneStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  DISPUTED
+}
+
+model User {
+  id                    String             @id @default(cuid())
+  pubkey                String             @unique
+  lnAddress             String?
+  // ADR-240 D1/D2: self-serve receiving address `<handle>@<LNURLP_DOMAIN>`.
+  // `lnAddressHandle` is the local part we serve (unique, lowercase);
+  // `lnAddressMode` picks the resolver that mints invoices (EXTERNAL | NWC).
+  // Null handle = not opted in.
+  lnAddressHandle       String?            @unique
+  lnAddressMode         LnAddressMode?
+  location              String? // ZIP Code / PLZ / Postcode (ADR-041)
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  offers                Offer[]            @relation("OfferCreator")
+  // ADR-304: AI Agent profiles owned by this user (a User may operate several).
+  agentProfiles         AgentProfile[]
+  // ADR-319 D1: task "Ausschreibungen" this user has published as a Buyer.
+  agentTasks            AgentTask[]
+  // ADR-328 D3: Agent Networks this user founded (owner, not necessarily the
+  // active orchestrator).
+  agentNetworks         AgentNetwork[]
+  // ADR-340 D1: agent-setup catalogs owned by this user (Catalog rows with
+  // catalogType=AGENT_SETUP; product catalogs live on Company).
+  agentCatalogs         Catalog[]          @relation("CatalogAgentSetupOwner")
+  ticketsAsBuyer        Ticket[]           @relation("TicketBuyer")
+  ticketsAsSeller       Ticket[]           @relation("TicketSeller")
+  workspacesAsBuyer     Workspace[]        @relation("WorkspaceBuyer")
+  workspaceMemberships  WorkspaceMember[]  @relation("WorkspaceCollaborator")
+  sessions              Session[]
+  // ADR-371: MCP connections (external-agent bearer tokens). Tokens are never
+  // stored — only sha256(token) hex — and are REST-inert (accepted solely by
+  // the public /mcp gateway and the internal /api/mcp/session relay, D7).
+  mcpConnections        McpConnection[]
+  identityLevel         Int                @default(0)
+  nostrPubkey           String?
+  // ADR-412 D2: persistent server-managed Nostr sub-key for this user's own
+  // (non-company) marketplace-facing offers, distinct from nostrPubkey
+  // above, which is the user's real login identity (NIP-07, ADR-141).
+  nostrListingPubkey     String?            @unique
+  nostrListingPrivkeyEnc String? // secretbox-encrypted (apps/server/lib/secretbox.ts)
+  nip05                 String?
+  picture               String?
+  // Nostr Kind 0 display metadata (synced fill-once from relays, see
+  // POST /api/identity/sync-nostr-profile). Display-only — never part of
+  // auth or identity-level decisions.
+  name                  String?
+  about                 String?
+  banner                String?
+  colPoints             Int                @default(0)
+  colPointsEvents       ColPointsEvent[]
+  // Multi-login: Google + Email + Lightning linking (ADR-096)
+  email                 String?            @unique
+  googleId              String?            @unique
+  evmAddress            String?            @unique
+  linkedPubkey          String? // Lightning pubkey linked via LUD-04 action=link
+  emailVerified         Boolean            @default(false)
+  // Magic link tokens for email verification
+  magicLinkToken        String?
+  magicLinkExpires      DateTime?
+  // ADR-402 D16.3: newsletter opt-in (consent source) ticked when THIS magic
+  // link was requested. Written and cleared together with magicLinkToken, so
+  // only the verify of that exact token can turn it into a CONFIRMED signup.
+  magicLinkNewsletterOptIn String?
+  profileVisibility     ProfileVisibility  @default(PUBLIC)
+  // Business/skill categories the user assigns to themselves (StandardCategory
+  // slugs, e.g. 'services/consulting') — powers Partners-tab category filtering.
+  categoryCodes         String[]           @default([])
+  // ADR-160 (PROB-003 B-γ): wallet-mode strategy consulted at provisioning +
+  // trade-time wallet selection (resolveWalletMode).
+  walletModeStrategy    WalletModeStrategy @default(HYBRID)
+  // ADR-235: account-level fiat display preference (EUR/USD/RUB/JPY). Sats stay
+  // the single source of truth; this only selects which fiat equivalent is shown
+  // next to sats amounts. Defaults to EUR (matches the prior localStorage default).
+  preferredFiatCurrency String             @default("EUR")
+  // ADR-228: a user may hold one Wallet row per provider (NWC + ALBY_OAUTH +
+  // CUSTODIAL can coexist) — see Wallet.@@unique([userId, provider]) below.
+  wallets               Wallet[]
+  albyOauthToken        AlbyOauthToken?
+
+  // ADR-284: admin moderation block. Independent of any status enum so it
+  // survives unrelated writes — set only via the admin block-account action,
+  // enforced at session creation (login) and session validation (requireAuth).
+  blockedAt       DateTime?
+  blockedReason   String?
+  blockedByPubkey String?
+}
+
+// ADR-281: per-user AI assistant provider configuration (local Ollama /
+// OpenAI-compatible / CLI adapter). The provider API key is encrypted at rest
+// (AES-256-GCM via AI_KEY_ENCRYPTION_SECRET, see lib/ai-keybox.ts) and NEVER
+// returned to the browser — GET /api/ai/config masks it (hasApiKey flag only).
+// The mcp-server decrypts it via the internal x-ai-internal-secret call.
+model UserAiConfig {
+  pubkey          String   @id
+  provider        String   @default("openai")
+  baseUrl         String?
+  model           String?
+  apiKeyEncrypted String?
+  adapterId       String?
+  runtime         String?
+  adapterArgs     String? // FU-292 — JSON string array, extra flags for the selected adapter's fixed run template (no new binaries, arg-array only)
+  updatedAt       DateTime @updatedAt
+}
+
+// ADR-384 D2/D3 — fixed-price AI credit packs. requestsRemaining is a bounded,
+// non-monetary service-entitlement counter (already-paid requests), NOT a
+// refillable balance: consumption is a CAS decrement (see routes/ai-credits.ts).
+model AiCreditBalance {
+  pubkey            String   @id
+  requestsRemaining Int      @default(0)
+  requestsUsed      Int      @default(0)
+  updatedAt         DateTime @updatedAt
+}
+
+model AiCreditPurchase {
+  id          String    @id @default(cuid())
+  pubkey      String? // null for a D10 guest purchase
+  guestSessionId String? // ADR-384 D10 (anonymous, non-recoverable)
+  tier        String // starter | standard | power
+  requests    Int // pack size at time of purchase
+  amountSats  Int
+  rail        String // LN | DEMO
+  invoice     String?
+  paymentHash String?
+  status      String    @default("PENDING") // PENDING | PAID
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+
+  @@index([pubkey, createdAt])
+  @@index([guestSessionId])
+}
+
+// ADR-384 D10 — anonymous session credits. Kept separate from AiCreditBalance so
+// "who owns this balance" is never ambiguous between a pubkey and a guest id.
+model AiGuestCredit {
+  guestSessionId    String   @id
+  requestsRemaining Int      @default(0)
+  requestsUsed      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ADR-402 D2 — append-only movement ledger beside the CAS counter. Every
+// NON-consumption change to AiCreditBalance (purchase confirm, admin grant/debit,
+// guest transfer) writes one row here in the same transaction as the counter
+// update. Consumption and refunds are not written per request (volume) — they
+// are covered by the D5 usage telemetry. Invariant, checked by the daily
+// reconciliation job: sum(delta) − requestsUsed = requestsRemaining.
+model AiCreditLedgerEntry {
+  id             String   @id @default(cuid())
+  pubkey         String? // null for a guest-side movement
+  guestSessionId String?
+  delta          Int // + grant/purchase, − debit/expire
+  kind           String // PURCHASE | GRANT | DEBIT | GUEST_TRANSFER | EXPIRE
+  reason         String?
+  actorPubkey    String? // admin pubkey for GRANT / DEBIT
+  purchaseId     String?
+  idempotencyKey String?  @unique
+  createdAt      DateTime @default(now())
+
+  @@index([pubkey, createdAt])
+  @@index([guestSessionId, createdAt])
+}
+
+// ADR-402 D7 — per-identity policy that can only RESTRICT relative to the global
+// env gates (AI_HOSTED_ENABLED / MCP_PAYWALL_ENABLED / PLATFORM_LLM_CONFIGURED).
+// It never opens a gate the environment has closed. `hostedAccess` suspends the
+// Colabonate-hosted AI path (paid BYO config is unaffected); `mcpAccess`
+// suspends external-agent (MCP) connections. Suspend never confiscates paid
+// entitlements — a debit (D3) is a separate, explicit, reasoned action.
+model UserAiPolicy {
+  pubkey          String   @id
+  hostedAccess    String   @default("DEFAULT") // DEFAULT | SUSPENDED
+  mcpAccess       String   @default("DEFAULT") // DEFAULT | SUSPENDED
+  // ADR-402 D7 (extension): caps the duration of an admin MCP pass grant. Null = no per-identity cap (the operator env still applies).
+  mcpMaxPassHours Int?
+  note            String?
+  updatedBy       String?
+  updatedAt       DateTime @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  pubkey    String
+  user      User     @relation(fields: [pubkey], references: [pubkey], onDelete: Cascade)
+  k1        String   @unique
+  token     String?  @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  // ADR-371 D7: derived REST credentials minted by the internal relay
+  // (POST /api/mcp/session) on behalf of an MCP connection. `kind='MCP'`
+  // marks such rows so refresh deletes the previous derived token and revoke
+  // can kill them; web-login sessions leave both null. No Prisma relation —
+  // cleanup is app-layer (deleteMany by mcpConnectionId), history is kept on
+  // McpConnection.
+  kind            String?
+  mcpConnectionId String?
+
+  @@index([mcpConnectionId])
+}
+
+// ADR-371 — MCP connections: one row per minted external-agent bearer token.
+// The raw token (256-bit random hex) is shown exactly once at mint time and
+// never stored or logged; only `tokenHash` (sha256 hex) is persisted and every
+// validation is a hash lookup. `scope` holds the connection's granted scope
+// strings (always includes "read"; write families opt-in, e.g. "offers:write").
+// Connections are REST-inert (D7): the token is only meaningful on the public
+// /mcp gateway and the internal /api/mcp/session relay, never on the general
+// REST surface — the relay mints short-lived derived Session rows instead.
+model McpConnection {
+  id        String   @id @default(cuid())
+  pubkey    String
+  user      User     @relation(fields: [pubkey], references: [pubkey], onDelete: Cascade)
+  tokenHash String   @unique
+  scope     String[]
+  label     String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  lastUsedAt DateTime?
+  // ADR-384 D11: null = legacy free connection (pre-paywall); else trial|day|week|month
+  passTier  String?
+  events    McpConnectionEvent[]
+
+  @@index([pubkey])
+}
+
+// ADR-384 D11 — time-boxed MCP access pass, paid directly to Colabonate. The clock
+// starts at confirmation; a pass bought while another is active extends it.
+model McpAccessPass {
+  id          String    @id @default(cuid())
+  pubkey      String
+  tier        String // day | week | month
+  amountSats  Int
+  rail        String // LN | DEMO
+  invoice     String?
+  paymentHash String?
+  status      String    @default("PENDING") // PENDING | PAID
+  createdAt   DateTime  @default(now())
+  confirmedAt DateTime?
+  activatedAt DateTime?
+  expiresAt   DateTime?
+
+  @@index([pubkey, status, expiresAt])
+}
+
+// ADR-384 D11 — one-time free trial marker. The primary key makes the claim atomic.
+model McpTrial {
+  pubkey String   @id
+  usedAt DateTime @default(now())
+}
+
+// ADR-371 — append-only activity log per MCP connection ("was passiert ist").
+// Sampled/bounded; records only tool name + outcome + agent label, never
+// token material or request payloads (FU-195-C).
+model McpConnectionEvent {
+  id           String        @id @default(cuid())
+  connectionId String
+  connection   McpConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  ts           DateTime      @default(now())
+  tool         String
+  outcome      String
+  agentLabel   String?
+
+  @@index([connectionId, ts])
+}
+
+model Wallet {
+  id                  String         @id @default(cuid())
+  userId              String
+  user                User           @relation(fields: [userId], references: [id])
+  provider            WalletProvider
+  mode                WalletMode
+  walletId            String?
+  accountId           String?
+  status              WalletStatus   @default(ACTIVE)
+  balanceSats         Int            @default(0)
+  lastSyncedAt        DateTime?
+  // ADR-228: a user can hold one Wallet row per provider at once (NWC +
+  // ALBY_OAUTH + CUSTODIAL as peers). Exactly one row per user should have
+  // isActive=true at a time — the app layer enforces this invariant
+  // (switching wallets sets the previous active row to false in the same
+  // transaction); Postgres has no simple partial-unique-in-Prisma-schema
+  // equivalent for that, so it is not DB-enforced.
+  isActive            Boolean        @default(true)
+  // ADR-208: Nostr Wallet Connect (NIP-47) connection fields. All nullable →
+  // non-breaking migration. nwcConnectionUriEnc is AES-256-GCM ciphertext of
+  // the nostr+walletconnect:// URI (which embeds a spend-capable secret). The
+  // pubkey/relays are non-secret and stored plaintext for display.
+  nwcConnectionUriEnc String?
+  nwcWalletPubkey     String?
+  nwcRelayUrls        String?
+  nwcConnectedAt      DateTime?
+  nwcLastSyncedAt     DateTime?
+  // ADR-253: Cashu receiving preference (provider='CASHU' rows only). Not a
+  // custodial balance — the wallet itself lives entirely in NIP-60 Nostr
+  // events; this just tells the server where to lock a buyer's P2PK token.
+  cashuReceivePubkey  String?
+  cashuReceiveMintUrl String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  @@unique([userId, provider])
+  @@index([userId])
+}
+
+model AlbyOauthToken {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // ADR-228 D3: AES-256-GCM ciphertext blobs (base64(iv || tag || ciphertext)).
+  encryptedAccess   String
+  encryptedRefresh  String?
+  accessTokenLast4  String
+  refreshTokenLast4 String?
+
+  expiresAt     DateTime?
+  grantedScopes String[]
+  clientId      String
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  lastRefreshedAt DateTime?
+  lastUsedAt      DateTime?
+  revokedAt       DateTime?
+  revokedReason   String?
+}
+
+// ADR-304: standalone AI agent identity, distinct from User/Company — a User may
+// operate several agents, agent reputation is separate from human reputation, and
+// an agent may later carry its own Nostr sub-key (ADR-316). isPublic gates search/
+// marketplace listing (D4); no PSEUDO_PRIVATE tier — agents are on the marketplace
+// or not.
+model AgentProfile {
+  id                   String    @id @default(cuid())
+  ownerPubkey          String
+  name                 String
+  description          String?
+  capabilities         String[] // free-form tags, e.g. ["text-generation", "image-generation"] (D2 — no central taxonomy)
+  tools                Json // ToolDescriptor[] = [{ name, description, endpoint?, protocol? }] (D2)
+  avatarUrl            String?
+  isPublic             Boolean   @default(false)
+  autoApply            Boolean   @default(false)
+  requireHumanApproval Boolean   @default(true)
+  // ADR-320 D4: permanent badge for the first 100 AgentProfiles ever created.
+  isPioneer            Boolean   @default(false)
+  // ADR-308 D1: owner offers themselves as Human-in-the-Loop for this agent
+  // (approvals/quality-review/escalation). Schema-only for now — no CRUD
+  // surface sets it yet (same as most AgentProfile fields, FU-346).
+  humanInLoop          Boolean   @default(false)
+  nostrPubkey          String?   @unique // agent-owned Nostr sub-key (ADR-316); null in V1 (D3)
+  // ADR-307 D2: composite reputation score (0.0-5.0), recomputed on every new
+  // AgentReviewMetrics row and cached here for cheap reads. Null until the
+  // first agent review with at least one dimension is recorded.
+  reputationScore      Float?
+  // ADR-317 D2: multi-signal trust score (0.0-1.0), recomputed on every new
+  // AgentClaim + on ticket status changes. Null until first computed —
+  // callers treat null as an implicit 1.0 multiplier (ADR-307 D3 fallback).
+  trustScore           Float?
+  // ADR-315 D3: Foundation-reviewed "Verified Agent" badge. Awarded by an
+  // admin (POST /api/admin/agent-profiles/:id/verify) after a paid audit;
+  // surface area is the badge on agent profile cards (MyAgents, applicant
+  // lists, future discovery surfaces). Public read exposes isVerified +
+  // verifiedAt; verifiedByPubkey + verificationNotes stay admin-only.
+  isVerified           Boolean   @default(false)
+  verifiedAt           DateTime?
+  verifiedByPubkey     String?
+  verificationNotes    String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  // ADR-340 D4: soft delete — keeps Ticket/Claim/TaskApplication history
+  // intact (Offer.agentProfileId and Ticket have default onDelete / SetNull,
+  // but explicit ARCHIVED-then-detach on the offer side preserves buyer-facing
+  // ticket continuity). Filter `deletedAt: null` on every read path.
+  deletedAt            DateTime?
+
+  // ADR-326 D10.3 / ADR-331 D5: corporate branding for an AgentProfile.
+  // Mirrors Offer.companyId. Nullable so an agent created by a user without
+  // a Company (or before they set one up) stays private. Used by ADR-331 D5
+  // to recover the Corporate role on a Cooperation's DRAFT resume (without
+  // this, a Corporate-owned agent's coop silently re-hydrates as private).
+  // Distinct from accountability: AgentProfile.ownerPubkey is always the
+  // accountable human regardless of companyId (matches ADR-328 D1's
+  // accountability-boundary invariant).
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  owner                  User                      @relation(fields: [ownerPubkey], references: [pubkey])
+  offers                 Offer[]
+  claims                 AgentClaim[]
+  // ADR-319 D2
+  taskApplications       AgentTaskApplication[]
+  // ADR-311 D2
+  workspaces             Workspace[]
+  // ADR-310 D2/D4: milestones this agent is matched/assigned to within an
+  // orchestration cooperation.
+  assignedMilestones     CoopMilestone[]
+  // ADR-332 D2: per-step assignments inside nested agent pipelines.
+  assignedMilestoneSteps CoopMilestoneStep[]
+  // ADR-328 D3: standing teams this agent profile is a member of.
+  networkMemberships     AgentNetworkMember[]
+  networkJoinRequests    AgentNetworkJoinRequest[]
+  // ADR-340 D1: unified-catalog memberships (rows of CatalogAgentMember on
+  // AGENT_SETUP-type catalogs).
+  catalogMemberships     CatalogAgentMember[]
+
+  @@unique([ownerPubkey, name])
+  @@index([isPublic])
+  @@index([isVerified])
+  @@index([companyId])
+  @@index([deletedAt])
+}
+
+// ADR-340 D1: Agent catalogs are folded into Catalog (catalogType=AGENT_SETUP);
+// see Catalog below. The legacy AgentCatalog + AgentCatalogMember models were
+// dropped in migration 2026-08-24 (ADR-340) — same-day data, never reached
+// Surface.
+
+// ADR-316 D2 / ADR-317 D1: third-party capability attestations. Only the
+// "customer" attester type is populated in V1 (auto-created alongside a
+// review on a COMPLETED AGENT_SETUP ticket, 1:1 with Review — mirrors
+// AgentReviewMetrics). Owner self-declaration deliberately has no row here
+// (ADR-317 D2 VerificationScore explicitly excludes self-declared signal);
+// "agent" (agent-to-agent) and "dao" (curated) attester types are defined in
+// the weight table but unreachable until ADR-310/foundation-curation ship.
+model AgentClaim {
+  id             String       @id @default(cuid())
+  agentProfileId String
+  agentProfile   AgentProfile @relation(fields: [agentProfileId], references: [id])
+  claimType      String // Volatile: 'CapabilityClaim' | 'PerformanceClaim' | 'IdentityClaim' | 'AuditClaim' (ADR-317 D1)
+  attesterType   String // Volatile: 'owner' | 'customer' | 'agent' | 'dao' (ADR-316 D2 weight table)
+  attesterPubkey String
+  capabilities   Json // string[] — the agent's declared capabilities at attestation time
+  // ADR-316 D5 Sybil resistance: claim must be bound to a real completed ticket.
+  ticketId       String?
+  reviewId       String?      @unique
+  nostrEventId   String?      @unique
+  createdAt      DateTime     @default(now())
+}
+
+// ADR-319: dynamic task allocation — a Buyer publishes an "Ausschreibung"
+// (task) without a fixed seller; AgentProfile owners apply, the Buyer selects
+// a winner. Deliberate deviation from the ADR text: `offerId` on
+// AgentTaskApplication is required, not optional — the codebase's Ticket
+// model always anchors to a concrete Offer (no "task-anchored ticket" type
+// exists), so an application without one could never be selected.
+enum AgentTaskStatus {
+  OPEN
+  SELECTING
+  ASSIGNED
+  // ADR-397 D4: driven by the linked ticket (Ticket.agentTaskId) —
+  // ticket PAID → IN_PROGRESS, ticket COMPLETED → COMPLETED.
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+// Not in the ADR's own text (it only names the default PENDING) — defined
+// here to distinguish an auto-applied application awaiting its owner's
+// confirmation (D3: `requireHumanApproval=true` gates auto-apply going live)
+// from one already visible to the Buyer for selection.
+enum AgentTaskApplicationStatus {
+  PENDING
+  AWAITING_OWNER_APPROVAL
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
+model AgentTask {
+  id                     String             @id @default(cuid())
+  creatorPubkey          String
+  creator                User               @relation(fields: [creatorPubkey], references: [pubkey])
+  title                  String
+  description            String
+  requiredCapabilities   String[]
+  budgetSats             Int
+  // Same contract as Offer.images (ADR-139 native JSON): data-URL photos
+  // attached by the creator via the shared MultiImageUploadInput; the first
+  // entry is the cover shown in bounty cards everywhere bounties render.
+  images                 Json?
+  // FU-870: 1:1 thumbnails of `images` (makeThumbsFromImages) — list
+  // responses ship these instead of the full data-URL photos.
+  imageThumbs            Json?
+  deadline               DateTime?
+  // ADR-397 D8: optional plain-text "done means" (≤ 2,000 chars) — shown to
+  // applicants, snapshotted into the ticket brief (D6) and shown at completion.
+  // (ADR-397 D11: the never-read `autoSelect` column was dropped.)
+  acceptanceCriteria     String?
+  status                 AgentTaskStatus    @default(OPEN)
+  // FU-483 (ADR-328 D2): null = no preference (today's default, task created
+  // outside the Guide). Set when reached via Coop Guide Tenders+agent, pre-
+  // filled from the Guide's agentSupervision choice, still directly editable
+  // here. Reuses OrchestrationMode (AgentNetwork's own supervision axis,
+  // ADR-328 D3) rather than a near-duplicate enum. Enforced at application
+  // time — see POST /:id/applications SUPERVISION_MISMATCH.
+  preferredSupervision   OrchestrationMode?
+  selectedAgentProfileId String?
+  selectedOfferId        String?
+  // ADR-397 D2-C: when the linked ticket was first seen paid (set by the
+  // bounty ↔ ticket sync) — feeds the poster's median time-to-pay signal.
+  ticketPaidAt           DateTime?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  applications AgentTaskApplication[]
+  // ADR-397 D4: the ticket that pays the selected winner (at most one live link).
+  ticket       Ticket?
+
+  @@index([status])
+  @@index([creatorPubkey])
+}
+
+model AgentTaskApplication {
+  id                String                     @id @default(cuid())
+  taskId            String
+  task              AgentTask                  @relation(fields: [taskId], references: [id])
+  agentProfileId    String
+  agentProfile      AgentProfile               @relation(fields: [agentProfileId], references: [id])
+  offerId           String
+  offer             Offer                      @relation(fields: [offerId], references: [id])
+  message           String?
+  proposedPriceSats Int?
+  proposedETA       DateTime?
+  status            AgentTaskApplicationStatus @default(PENDING)
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+
+  @@unique([taskId, agentProfileId])
+}
+
+// ADR-328 D3: a durable, ownable, joinable collective of AgentProfiles —
+// the agent-side counterpart of today's human Network cooperation ("open or
+// closed membership... no fixed end date... guilds & local initiatives").
+// Deliberately NOT a CooperationType value and deliberately no companyId in
+// this slice — that column is FU-495 (ADR-326 D10.7), which also needs the
+// Company relation it would drag in here.
+enum OrchestrationMode {
+  HUMAN
+  AUTONOMOUS
+}
+
+// LEAD = holds the reserved "orchestration" capability tag (ADR-310 D6) and
+// acts as coordinator — only meaningful when orchestrationMode=AUTONOMOUS.
+// Under HUMAN mode the owner is the de facto lead; a LEAD member is still
+// legal there (e.g. designated backup) but has no special effect.
+enum AgentNetworkMemberRole {
+  MEMBER
+  LEAD
+}
+
+// Implementation-record deviation from the ADR-328 D3 schema block: D3's
+// prose ("a third-party agent can never be a member of my AgentNetwork
+// unless its owner explicitly joins") + the closed-network approval flow
+// (FU-484 router / FU-487 manage UI) require a persisted join request —
+// D3's two models alone cannot represent one. Same pattern the suite has
+// used before when an ADR's own worked behavior contradicted its schema
+// block (ADR-307 D5, ADR-308 FU-401).
+enum AgentNetworkJoinRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model AgentNetwork {
+  id                String            @id @default(cuid())
+  ownerPubkey       String // -> User.pubkey; the founder, not necessarily the active orchestrator
+  name              String
+  description       String?
+  orchestrationMode OrchestrationMode @default(HUMAN)
+  openMembership    Boolean           @default(false) // false = invite/approval-only
+  isPublic          Boolean           @default(false) // discoverable via Find
+  reputationScore   Float? // V1: simple average of member AgentProfile.reputationScore
+  nostrPubkey       String?           @unique // network's own sub-identity (Kind 31424, FU-488 verified); null until the publisher lands (FU-485)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  // ADR-326 D10.7: same logic as AgentProfile.companyId — a Company can
+  // field its own branded team, not just individual agents. Nullable so a
+  // network founded by a user without a Company stays private/independent.
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  owner        User                      @relation(fields: [ownerPubkey], references: [pubkey])
+  members      AgentNetworkMember[]
+  joinRequests AgentNetworkJoinRequest[]
+
+  @@index([isPublic])
+  @@index([companyId])
+}
+
+model AgentNetworkMember {
+  id             String                 @id @default(cuid())
+  networkId      String
+  agentProfileId String
+  role           AgentNetworkMemberRole @default(MEMBER)
+  joinedAt       DateTime               @default(now())
+
+  network      AgentNetwork @relation(fields: [networkId], references: [id])
+  agentProfile AgentProfile @relation(fields: [agentProfileId], references: [id])
+
+  @@unique([networkId, agentProfileId])
+}
+
+model AgentNetworkJoinRequest {
+  id             String                        @id @default(cuid())
+  networkId      String
+  network        AgentNetwork                  @relation(fields: [networkId], references: [id])
+  agentProfileId String
+  agentProfile   AgentProfile                  @relation(fields: [agentProfileId], references: [id])
+  message        String?
+  status         AgentNetworkJoinRequestStatus @default(PENDING)
+  createdAt      DateTime                      @default(now())
+  decidedAt      DateTime?
+
+  @@index([networkId, status])
+}
+
+model Offer {
+  id                      String                 @id @default(cuid())
+  title                   String
+  description             String?
+  priceSats               Int
+  // ADR-277 D9/R5: non-sats foreign Gamma listings (`price` = [amount, currency, freq?]) are
+  // display-only until ADR-176 lands settlement-time conversion — priceSats stays canonical
+  // for local/sats offers, these two carry the original published price for foreign ones.
+  priceAmount             String?
+  priceCurrency           String?
+  originUrl               String? // ADR-415: origin URL (`r` tag) of a REMOTE listing
+  remoteSellerPubkey      String? // ADR-417: hex pubkey from the listing's ["p",<pk>,"","seller"] tag (REMOTE only); the payee when present
+  category                String?
+  subcategory             String?
+  categoryCode            String
+  subcategoryCode         String?
+  // ADR-277: free-form NIP-99 `t` tags — a second, emergent taxonomy axis
+  // alongside the curated categoryCode (StandardCategory). Never treated as
+  // hierarchical; normalized (lowercase/trim/dedupe) at every write.
+  gammaTags               String[]               @default([])
+  location                String? // Legacy (ADR-041) — sunset 90 days after Phase 0 ships
+  status                  String                 @default("DRAFT") // Volatile: OfferStatus values, zod-validated
+  ticketType              TicketType             @default(SMART_ORDER)
+  offerType               OfferType              @default(SERVICE)
+  images                  Json? // Native JSON (ADR-139): was String? with JSON.stringify
+  imageThumbs             Json? // 160×120 JPEG q60 Base64 thumbnails, 1:1 with images[] (ADR-194 FU-194-A)
+  nostrEventId            String?                @unique
+  // ADR-363 D4: NIP-99 `d`-tag of the source Nostr listing (addressable-event
+  // identity). Lets the Nostr pipeline detect that a re-published listing
+  // (new event id, same `d`-tag) is the SAME logical offer and update it in
+  // place instead of creating a duplicate.
+  remoteDTag              String?
+  publishedAt             DateTime?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  creatorPubkey           String
+  creator                 User                   @relation("OfferCreator", fields: [creatorPubkey], references: [pubkey])
+  tickets                 Ticket[]
+  offerMilestones         OfferMilestone[]
+  taskApplications        AgentTaskApplication[]
+  companyId               String?
+  company                 Company?               @relation(fields: [companyId], references: [id])
+  productId               String?
+  product                 Product?               @relation(fields: [productId], references: [id])
+  // ADR-304 D5: agent-setup offers point back at the AgentProfile they book.
+  // offerType/schema details for AGENT_SETUP are decided in ADR-305 — this ADR
+  // only establishes the FK.
+  agentProfileId          String?
+  agentProfile            AgentProfile?          @relation(fields: [agentProfileId], references: [id])
+  // ADR-311 D2
+  workspaces              Workspace[]
+  // ADR-352 D1a: back-relation for CoopMilestone(Step).assigneeOfferId — this
+  // offer booked as a specific agent-orchestration pipeline assignment.
+  assignedMilestones      CoopMilestone[]
+  assignedMilestoneSteps  CoopMilestoneStep[]
+  // ADR-305 D2: agent-setup configuration + billing. agentConfigSealed is a
+  // NIP-44-encrypted blob (ADR-306, not yet implemented — stored opaque until
+  // then); agentConfigMeta is the plaintext-safe subset (capabilities/tools/
+  // modelProvider/humanInLoop) used for search + display.
+  agentConfigSealed       String?
+  agentConfigMeta         Json?
+  agentBillingModel       AgentBillingModel?
+  agentWorkspaceTTL       Int?                   @default(604800) // seconds; workspace retained this long after ticket completion
+  // FU-376 (revised 2026-08-29 — no Foundation subsidy exists; the Initiator
+  // always pre-funds the declared runtime): seller-declared typical/expected
+  // work duration in hours for this Agent-Setup. Used to compute the
+  // mandatory minimum funding a buyer must pay at workspace initiation
+  // (computeMandatoryInitialFundingSats — declared hours + 30% buffer).
+  // Nullable for pre-existing offers created before this field existed.
+  estimatedWorkspaceHours Float?
+  // ADR-305 D6: optional Persona Pack reference (Buzz-adapted, Open-Plugin-Spec
+  // compatible) as an alternative/complement to agentConfigSealed. Resolution
+  // + validation is FU-394 (packages/agent-persona), not built yet — these
+  // fields only carry the reference today.
+  personaPackRef          String?
+  personaPackVersion      String?
+  personaPackHash         String?
+  personaId               String?
+  deliveryTimeDays        Int?
+  deliveryCostSats        Int?
+  deliveryTemplateId      String?
+  deliveryTemplate        DeliveryTemplate?      @relation(fields: [deliveryTemplateId], references: [id])
+  deliveryNotes           String?
+  cooperationId           String?                @unique
+  cooperation             Cooperation?           @relation("OfferCooperation")
+
+  // Structured geo (ADR-139) — country nullable during transition
+  country           String? // ISO 3166-1 alpha-2
+  region            String?
+  city              String?
+  lat               Float?
+  lng               Float?
+  isRemote          Boolean     @default(false)
+  language          String? // BCP-47, user-declared at creation
+  source            OfferSource @default(LOCAL)
+  allowedVisibility Json? // VisibilityTier[] — seller-defined allowed tiers (ADR-151); null = [0] (public only)
+
+  // ADR-155/156: Product variation + shipping enrichment
+  productType        String? // simple | variable | variation (ADR-156)
+  physicalType       String? // digital | physical (ADR-156)
+  parentOfferId      String? // for variation type: points to parent variable offer (ADR-156)
+  specs              Json? // ProductSpec[] = [{key, value}] (ADR-156)
+  stock              Int? // informational inventory count (ADR-156)
+  weight             String? // decimal string, e.g. "0.25" (ADR-156)
+  weightUnit         String? // e.g. "kg" (ADR-156)
+  dimensions         String? // LxWxH format, e.g. "30x25x2" (ADR-156)
+  dimensionsUnit     String? // e.g. "cm" (ADR-156)
+  listingVisibility  String? @default("on-sale") // hidden | on-sale | pre-order (ADR-156)
+  shippingOptionRefs Json? // ShippingOptionRef[] = [{kind, pubkey, d, extraCost?}] (ADR-155)
+
+  // ADR-270: Product attributes & variant matrix
+  variantAxes   Json? // VariantAxis[] = [{ name: string, values: string[] }] (ADR-270)
+  variantValues Json? // Record<axisName, value> — set on variation children only (ADR-270)
+
+  // ADR-271: bookable-resource linking + time-based pricing units.
+  // bookingMode null/absent = ordinary offer (default). DATE_RANGE = SPACE
+  // (nights), SESSION = fixed occurrence (seats). Many offers may point at the
+  // same resource (tariff siblings, ADR-270 parent/child reuse one calendar).
+  resourceId              String? // → BookableResource.id
+  resource                BookableResource? @relation(fields: [resourceId], references: [id])
+  bookingMode             String? // 'DATE_RANGE' | 'SESSION' (volatile, zod-validated)
+  priceUnit               String? // 'per_night' | 'per_day' | 'per_hour' | 'per_seat' | 'flat'
+  bookingMinUnits         Int? // per-offer override of the resource default (nights/seats)
+  bookingMaxUnits         Int?
+  confirmationWindowHours Int               @default(24) // D5: unanswered requests expire after this
+  autoConfirm             Boolean           @default(false) // D5: true ONLY with a seller NIP-46 delegate — listing may show "Instant confirmation"
+
+  // ADR-152: Trade visibility (PUBLIC default — no breaking change for existing offers)
+  visibility  TradeVisibility @default(PUBLIC)
+  disputeMode DisputeMode     @default(PUBLIC)
+
+  // PROB-003 B-α: per-Offer LNBits sub-wallet for private-mode isolation.
+  // Soft reference; the actual sub-wallet lives in the user's main LNBits
+  // account and is identified by its LNBits walletId. Null for PUBLIC offers.
+  // FU-02: adminKey stored for Beta so escrow ops can be routed through the
+  // sub-wallet. Move to encrypted Vault table in Phase 4+.
+  lightningSubWalletId       String?
+  lightningSubWalletAdminKey String?
+
+  // ADR-184: enable three-phase hold-invoice escrow for this offer.
+  useEscrow         Boolean @default(false)
+  phase2WindowHours Int     @default(24) // buyer payment window for Phase 2
+
+  // Network-type cooperations (coopType=network): membership configuration for a
+  // provider network created through the Coop Guide. All nullable → a plain Offer
+  // (non-network) leaves them null. Only set when the offer represents a network.
+  networkType        String? // 'open' | 'closed'
+  membershipCriteria String?
+  maxMembers         Int?
+  members            OfferMember[]
+
+  // ADR-284: admin moderation block, independent of `status` — a block must
+  // survive a later set-status write (e.g. back to ACTIVE). Enforced as an
+  // added `blockedAt: null` condition on every public discover/detail path.
+  blockedAt       DateTime?
+  blockedReason   String?
+  blockedByPubkey String?
+
+  @@index([status, publishedAt])
+  @@index([creatorPubkey, status])
+  // ADR-363 D4: the approveCandidate in-place guard looks up an ACTIVE offer
+  // by (creatorPubkey, remoteDTag) — support that lookup with an index.
+  @@index([creatorPubkey, remoteDTag])
+  @@index([offerType, status])
+  @@index([country, status])
+  @@index([categoryCode])
+  @@index([companyId, status])
+  @@index([agentProfileId])
+  @@index([source, status])
+  @@index([parentOfferId])
+  @@index([productType, status])
+  @@index([resourceId])
+  @@index([gammaTags], type: Gin)
+  // ADR-406 D6 (FU-913): viewport (bbox) marker lookups on the marketplace map.
+  @@index([lat, lng])
+}
+
+// ADR-212: membership in a network cooperation (Offer.offerType=COOP).
+// Open networks: row created ACTIVE immediately. Closed networks: row created
+// PENDING and requires the network owner (Offer.creatorPubkey) to accept/decline.
+model OfferMember {
+  id        String   @id @default(cuid())
+  offerId   String
+  offer     Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  pubkey    String
+  status    String   @default("PENDING") // PENDING | ACTIVE | DECLINED | REMOVED
+  message   String? // optional note from the applicant, shown to the owner on closed networks
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([offerId, pubkey])
+  @@index([offerId, status])
+  @@index([pubkey])
+}
+
+model OfferMilestone {
+  id          String  @id @default(cuid())
+  offerId     String
+  offer       Offer   @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  percentage  Int
+  sortOrder   Int     @default(0)
+}
+
+model Ticket {
+  id               String    @id @default(cuid())
+  // ADR-204: xor — cooperation tickets have no offerId; offer tickets have no cooperationId.
+  // Exactly one of offerId / cooperationId must be set. Enforced at API level.
+  offerId          String?
+  offer            Offer?    @relation(fields: [offerId], references: [id])
+  // ADR-397 D3/D4: set when this ticket pays a bounty winner. Unique = at most
+  // one linked ticket per bounty; reverting a selection unlinks a CANCELLED
+  // ticket (sets this back to null) so a new winner can be ticketed.
+  agentTaskId      String?    @unique
+  agentTask        AgentTask? @relation(fields: [agentTaskId], references: [id])
+  // ADR-397 D6: the bounty brief frozen at ticket creation — { title,
+  // description, acceptanceCriteria, deadline } — so later bounty edits never
+  // change what the agent was hired for. Shown in ticket + workspace.
+  bountyBrief      Json?
+  buyerPubkey      String
+  buyer            User      @relation("TicketBuyer", fields: [buyerPubkey], references: [pubkey])
+  sellerPubkey     String
+  seller           User      @relation("TicketSeller", fields: [sellerPubkey], references: [pubkey])
+  status           String    @default("PENDING") // Volatile: TicketStatus values, zod-validated
+  offerType        OfferType @default(SERVICE)
+  lightningInvoice String?
+  paymentHash      String?
+  // ADR-394: purchased unit count. `amountSats` is the TOTAL the buyer pays
+  // (Offer.priceSats × quantity) — the two are written together at creation so
+  // the seller knows how many units to deliver without re-deriving from the
+  // (possibly edited) offer. 1 for every path that carries no cart quantity
+  // (cooperation tickets, programmatic creates, pre-ADR-394 rows).
+  amountSats       Int?
+  quantity         Int       @default(1)
+  // ADR-394 FU-841: units of Offer.stock reserved by this ticket (0 = none /
+  // unlimited stock / already released). Zeroed by the stock-release tick
+  // when the ticket is cancelled or its unpaid invoice expired.
+  stockReserved    Int       @default(0)
+  // ADR-394 FU-840: random key grouping the tickets of one cart checkout.
+  checkoutId       String?
+  disputeReason    String?
+  nostrEventId     String?   @unique
+  preimage         String?
+
+  ticketType           TicketType  @default(SMART_ORDER)
+  escrowStatus         String      @default("NONE") // Volatile: EscrowStatus values, zod-validated
+  phase1Invoice        String?
+  phase2Invoice        String?
+  phase3Invoice        String?
+  escrowPhase1Hash     String?
+  escrowPhase2Hash     String?
+  escrowPhase3Hash     String?
+  escrowPhase1Preimage String?
+  escrowPhase2Preimage String?
+  escrowPhase3Preimage String?
+  deliveryConfirmedAt  DateTime?
+  milestones           Milestone[]
+  deliveryAddress      Json? // Native JSON (ADR-139): was String?
+  deliveryTimeDays     Int?
+  deliveryCostSats     Int?
+  totalHours           Int?
+  deliveryNotes        String?
+
+  // ADR-312 D6: snapshot of Offer.agentBillingModel at ticket creation time —
+  // AGENT_SETUP tickets only, mirrors the offer's billing model so a later
+  // offer edit doesn't retroactively change an already-created ticket/workspace's
+  // billing behavior (same denormalization convention as visibility/disputeMode below).
+  agentBillingModel AgentBillingModel?
+
+  // ADR-396 D3 (FU-851): the agent config pinned at booking — a copy of
+  // Offer.agentConfigSealed (still sealed to the seller's key) and its SHA-256.
+  // Workspace/canvas injection uses this copy, so later offer edits only
+  // affect new bookings; the hash is the audit reference for disputes.
+  agentConfigSealedSnapshot String?
+  agentConfigHash           String?
+
+  // ADR-152: Trade visibility inherited from Offer. Tickets in PRIVATE mode
+  // are not eligible for reputation (Reviews + ColPoints gated — see
+  // canBuildReputation() in apps/server/services/reputationService.ts).
+  visibility  TradeVisibility @default(PUBLIC)
+  disputeMode DisputeMode     @default(PUBLIC)
+
+  // PROB-003 B-α: per-Ticket escrow sub-wallet for private-mode isolation.
+  escrowSubWalletId String?
+
+  // ADR-184: escrow timeout / auto-release deadlines
+  escrowPhase1Deadline      DateTime?
+  escrowPhase2Deadline      DateTime?
+  escrowPhase3Deadline      DateTime?
+  escrowAutoReleaseDeadline DateTime?
+  escrowEnabled             Boolean   @default(false) // mirrors Offer.useEscrow
+
+  // ADR-253/FU-253-E: which escrow mechanism (if any) this ticket uses.
+  // Volatile: 'NONE' | 'CUSTODIAL_LEGACY' | 'ICP' values, zod-validated.
+  // Discriminates the two legacy-vs-current escrow paths that must coexist:
+  // 'NONE' = Direct-Pay (escrowEnabled=false, see directPayRail below),
+  // 'CUSTODIAL_LEGACY' = the kill-switched three-phase hold-invoice stack
+  // (ADR-121/123/124/184/193, escrowEnabled=true today — the only escrow
+  // path actually wired), 'ICP' = the ICP canister (ADR-254) once app-side
+  // wiring exists — not set by any code path yet.
+  escrowProvider String @default("NONE")
+
+  // ADR-253: which non-escrow direct-pay rail this ticket resolved to.
+  // Volatile: 'LN' | 'CASHU' values, zod-validated. Null for escrow/legacy
+  // custodial tickets. Denormalized at creation so BuyCartFlow doesn't need
+  // a second round trip to know how to render the payment step.
+  directPayRail     String?
+  cashuMintUrl      String?
+  cashuSellerPubkey String?
+
+  // ADR-399 D1: how the seller's LN invoice was issued ('LNURL' | 'NWC' |
+  // 'ALBY_OAUTH') and the LUD-21 verify URL (LNURL only). Lets the server
+  // detect settlement without the buyer's preimage (D2).
+  sellerInvoiceSource String?
+  sellerVerifyUrl     String?
+  // ADR-399 D3: the buyer's P2PK-locked Cashu token (spendable only with the
+  // seller's Cashu key), delivered through the ticket. Set once.
+  cashuToken       String?
+  cashuTokenSentAt DateTime?
+
+  // ADR-270: Frozen variant description at ticket creation (e.g. "Size: M · Colour: blue")
+  variantLabel String?
+
+  // ADR-318 D5: buyer-self-reported classification, set only when disputing an
+  // AGENT_SETUP ticket. Volatile: AgentDisputeType values, zod-validated. Not an
+  // objective verdict (see AgentDisputeTypeSchema comment) — informational hint
+  // for the DAO Council reviewing an agent dispute.
+  agentDisputeType String?
+
+  // ADR-308 D2 Stage 2 (Quality Gate): snapshot of AgentProfile.humanInLoop at
+  // ticket creation — AGENT_SETUP only, same denormalization convention as
+  // agentBillingModel above (a later AgentProfile edit must not retroactively
+  // change an already-created ticket's gate). When true, the buyer cannot
+  // self-transition this ticket to COMPLETED until the seller has reviewed
+  // (qualityApprovedAt set) — mirrors Stage 1's requireHumanApproval gate on
+  // PENDING->ACCEPTED, one stage later in the lifecycle.
+  qualityGateRequired Boolean   @default(false)
+  qualityApprovedAt   DateTime?
+
+  // ADR-204: Cooperation ticket coverage. Either offerId OR cooperationId must be set.
+  // cooperationId enables the dispute flow (Dispute + PrivateArbiter) for cooperations.
+  cooperationId String?      @unique
+  cooperation   Cooperation? @relation(fields: [cooperationId], references: [id])
+
+  // ADR-370 D2 (Phase 1, FU-670): ticket-level doop collaboration-canvas binding
+  // snapshot, taken at ticket creation from Offer.agentConfigMeta.canvas for ALL
+  // providers (mirrors the ADR-342 Workspace columns). This makes the canvas an
+  // offer property the buyer has already committed to at purchase: later offer
+  // edits cannot rewrite what an existing ticket displays (fix G3 — was true only
+  // for doop-hosted via the Workspace snapshot; doop-local was re-derived live).
+  // For doop-hosted the status drives the ticket UI (pending → disabled button,
+  // failed → retry, ready → SSO open) even BEFORE any Workspace row exists — the
+  // canvas is provisioned independently of the ICP workspace (auto-enqueue on the
+  // first transition to PAID, fix G2). The Workspace columns stay for
+  // cooperation-anchored workspaces (ADR-352) and mirror the ticket binding once
+  // a workspace is created (bind-to-existing, never provision twice).
+  canvasProvider           String?
+  canvasInstanceUrl        String?
+  canvasId                 String?
+  canvasBuyerAccess        String?
+  canvasProvisioningStatus String?
+
+  // ADR-372 D2/D3: hosted-canvas service fee snapshot, taken at ticket creation
+  // for doop-hosted AGENT_SETUP tickets only (null for every other ticket). The
+  // rate (bps) and the computed fee (sats) are pinned so a later env/offer
+  // change never rewrites a running ticket — same denormalization discipline as
+  // agentBillingModel (ADR-312 D6) and the canvas binding (ADR-370 D2). The
+  // collection lifecycle lives on the 1:1 TicketPlatformFee row below.
+  hostedCanvasFeeBps  Int?
+  hostedCanvasFeeSats Int?
+
+  // ADR-370 D4/D5 (Phase 4, FU-673): canvas-agent-runner state, keyed on the
+  // ticket (one agent per ticket canvas in V1 — D5). The runner is a separate
+  // process that connects to the hosted doop canvas over MCP as the seller's
+  // configured agent; it never writes Prisma — these columns are the server's
+  // bookkeeping mirror for the outbox start/stop hand-off and the ticket UI
+  // status (Phase 5).
+  //   agentRunnerSealed   the seller's NIP-44 re-seal of the persona to the
+  //                       runner's per-ticket pubkey (relayed ciphertext only —
+  //                       the server never sees the plaintext, ADR-306/370 D4).
+  //   agentRunnerStatus   'none' | 'starting' | 'running' | 'stopping' |
+  //                       'stopped' | 'failed' — set by the outbox handler.
+  agentRunnerSealed    String?
+  agentRunnerStatus    String?
+  agentRunnerStartedAt DateTime?
+  agentRunnerStoppedAt DateTime?
+  agentRunnerLastError String?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  reviews         Review[]
+  disputes        Dispute[]
+  privateArbiters PrivateArbiter[]
+  workspace       Workspace?
+  // ADR-372 D3: 1:1 hosted-canvas fee collection row — created at purchase for
+  // doop-hosted AGENT_SETUP tickets only.
+  platformFee     TicketPlatformFee?
+  escrowTrade     EscrowTrade?
+  daoId           String?          @default("colabonate-foundation")
+  codexHash       String?
+
+  @@index([checkoutId])
+}
+
+// ADR-311 D2: server-side workspace lifecycle mirror. The Workspace-Canister
+// (packages/icp-workspace-canister, not built yet — FU-431) is the execution
+// engine; this model tracks the lifecycle states the server owns (deploy
+// request after payment, buyer completion, TTL expiry) and becomes the
+// canister's state mirror once the D5 wiring (@dfinity/agent, FU-432) lands.
+model Workspace {
+  id                       String              @id @default(cuid())
+  // 1:1 with the paid AGENT_SETUP ticket that funds this workspace.
+  // ADR-352 D1: optional now — a Cooperation-anchored workspace (cooperationId
+  // set below) has no Ticket at all (ADR-204's Cooperation-level Ticket is a
+  // separate, unrelated funding/dispute mechanism — see ADR-352's Verification
+  // Research). Exactly one of ticketId / cooperationId is set, enforced at the
+  // API level (same XOR convention as Ticket.offerId/cooperationId, ADR-204).
+  ticketId                 String?             @unique
+  ticket                   Ticket?             @relation(fields: [ticketId], references: [id])
+  // ADR-352 D1: set when this workspace executes agent work inside a
+  // Cooperation pipeline rather than a single AGENT_SETUP ticket. Combined
+  // with offerId below, @@unique enforces "one Workspace per (Cooperation,
+  // Offer)" — every CoopMilestone(Step) assigned to the same Offer shares
+  // this one ongoing workspace, regardless of how many steps/milestones.
+  cooperationId            String?
+  cooperation              Cooperation?        @relation(fields: [cooperationId], references: [id])
+  offerId                  String
+  offer                    Offer               @relation(fields: [offerId], references: [id])
+  // Denormalized from Offer.agentProfileId at creation for cheap lookups.
+  agentProfileId           String?
+  agentProfile             AgentProfile?       @relation(fields: [agentProfileId], references: [id])
+  buyerPubkey              String
+  buyer                    User                @relation("WorkspaceBuyer", fields: [buyerPubkey], references: [pubkey])
+  // ADR-314 minimal chat slice: the pubkey passed as the canister's
+  // `buyer_pubkey` (signature-verification target for post_message/call_tool/
+  // approve_tool_call). Defaults to buyerPubkey at creation (unchanged
+  // behavior for callers that don't opt in) — the client may instead pass its
+  // locally-signable burner pubkey (`signerPubkey` on POST /), since
+  // buyerPubkey is the *login* identity and may be NIP-07/bunker-controlled,
+  // which cannot sign arbitrary (non-event) messages client-side. Immutable
+  // after the canister workspace is deployed (baked into `create_workspace`).
+  canisterBuyerPubkey      String?
+  // ICP canister id once deployed (D5); null while no canister backend is
+  // configured — the workspace then stays PENDING_DEPLOY.
+  canisterId               String?
+  // Canister-internal workspace handle (nat64 returned by `create_workspace`,
+  // D5) — needed by every later canister call (status, add_cycles, complete,
+  // destroy). Stored as string: nat64 exceeds Number.MAX_SAFE_INTEGER.
+  canisterWorkspaceId      String?
+  // ADR-312 D6: denormalized from Ticket.agentBillingModel at workspace
+  // creation (cheap lookups, same convention as agentProfileId above). Passed
+  // to the canister's create_workspace as billing_model — PER_TOKEN changes
+  // how post_message books cycles (llm.rs::parse_token_usage +
+  // billing.rs::token_cost_cycles instead of the raw outcall infra cost).
+  agentBillingModel        AgentBillingModel?
+  // Volatile: WorkspaceStatus values, zod-validated (apps/server/lib/enums.ts).
+  status                   String              @default("PENDING_DEPLOY")
+  // D3 cycle-budget bookkeeping in sats. Null = no budget recorded; the
+  // metering itself lives in the canister (FU-433). Never pre-credited —
+  // the Initiator always pays the mandatory initial funding recharge
+  // (WorkspaceRecharge.isMandatoryInitial) before this becomes non-zero.
+  cycleBudgetSats          Int?
+  activatedAt              DateTime?
+  completedAt              DateTime?
+  expiresAt                DateTime?
+  createdAt                DateTime            @default(now())
+  updatedAt                DateTime            @updatedAt
+  recharges                WorkspaceRecharge[]
+  // ADR-349 D1: invited third-party collaborators (e.g. the Agent-Setup
+  // provider). The buyer stays the implicit Owner via buyerPubkey above — no
+  // row is created for them. A member row alone only grants read access
+  // today (GET /:id, /:id/output-key, /:id/outputs); chat/tool-call write
+  // access stays buyer-signed-only until FU-589 (canister multi-signer
+  // support) ships.
+  members                  WorkspaceMember[]
+  // ADR-342 D3/D4a (Phase B): doop-hosted collaboration canvas binding.
+  // All nullable, null-by-default preserves "doesn't apply" (ADR-331 D1).
+  // canvasProvider is snapshotted from Offer.agentConfigMeta.canvas at
+  // workspace creation; canvasId/canvasProvisioningStatus are written by the
+  // canvas-provision outbox worker; canvasBuyerAccess is the D4a snapshot
+  // (creator's choice at setup creation, materialized here so later offer
+  // edits don't rewrite running tickets).
+  canvasId                 String?
+  canvasProvider           String?
+  canvasProvisioningStatus String?
+  canvasBuyerAccess        String?
+
+  @@unique([cooperationId, offerId])
+  @@index([buyerPubkey, status])
+  @@index([status, expiresAt])
+  @@index([cooperationId])
+}
+
+// ADR-349 D1: an invited read-scoped collaborator on a Workspace. Owner
+// (the ticket buyer) is never a row here — it's derived from
+// Workspace.buyerPubkey. Only the buyer can invite/remove (server-enforced,
+// not a DB constraint). Auto-accepted on creation (no pending/invite-token
+// state) since only the Owner can create the row in the first place — a
+// richer accept/decline flow is speculative until real demand shows up.
+model WorkspaceMember {
+  id                   String    @id @default(cuid())
+  workspaceId          String
+  workspace            Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pubkey               String
+  member               User      @relation("WorkspaceCollaborator", fields: [pubkey], references: [pubkey])
+  invitedBy            String
+  createdAt            DateTime  @default(now())
+  // FU-589: the collaborator's own locally-signable device key, registered
+  // by THEIR browser (POST /:id/members/me/signer) once they first open the
+  // workspace — never set by the inviting buyer, who cannot know it. Mirrors
+  // Workspace.canisterBuyerPubkey exactly: `pubkey` above is the login
+  // identity (may be NIP-07/bunker-controlled, unsignable client-side); this
+  // is the per-device burner key (lib/workspaceChat.ts) actually authorized
+  // on the canister for buyer-direct actions. Null until registered — read
+  // access (D1) never depends on this, only write parity (FU-589) does.
+  canisterSignerPubkey String?
+
+  @@unique([workspaceId, pubkey])
+  @@index([pubkey])
+}
+
+// FU-433 (ADR-311 D3): cycle-reload payment record. The buyer pays the
+// SELLER directly (same direct-pay rails as tickets, ADR-253) to top up the
+// workspace's cycle budget; the server row is the buyer-facing money commit
+// and the canister `add_cycles` relay mirrors it (relayedAt, FU-435
+// precedence). Status: PENDING → PAID (preimage-verified or demo). The
+// unique paymentHash makes re-paying the same invoice a no-op.
+model WorkspaceRecharge {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  workspace          Workspace @relation(fields: [workspaceId], references: [id])
+  amountSats         Int
+  paymentHash        String    @unique
+  bolt11             String?
+  rail               String // LN | DEMO (CASHU unsupported in v1 — no invoice to verify)
+  status             String    @default("PENDING")
+  paidAt             DateTime?
+  relayedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  // FU-376 (revised 2026-08-29): true for the one recharge auto-created at
+  // workspace initiation to cover the mandatory minimum funding (declared
+  // Offer.estimatedWorkspaceHours + 30% buffer, computeMandatoryInitialFundingSats).
+  // The workspace chat route requires this recharge to be PAID before
+  // allowing any message — there is no free/subsidized starting budget.
+  isMandatoryInitial Boolean   @default(false)
+
+  @@index([workspaceId, status])
+}
+
+// ADR-372 D3: hosted-canvas service-fee collection record — a 1:1 per-Ticket
+// row created at purchase for doop-hosted AGENT_SETUP tickets only. The buyer
+// pays this as a SEPARATE invoice to Colabonate's own Lightning Address
+// (PLATFORM_LN_ADDRESS via resolvePlatformInvoice) — never a deduction from the
+// seller's Direct-Pay invoice (ADR-253 makes a seller-side deduction
+// structurally impossible; the platform only *receives* its own fee). Same
+// rail/status discipline as WorkspaceRecharge (ADR-351): LN issues a real
+// LUD-16 invoice the buyer pays + self-reports the preimage; DEMO (beta only)
+// has no bolt11 and confirms preimage-free with a debitDemoWallet debit.
+// Once PAID the row is terminal — no refund path (the fee is earned at
+// purchase, infra-cost model, D4).
+model TicketPlatformFee {
+  id          String   @id @default(cuid())
+  ticketId    String   @unique
+  ticket      Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  amountSats  Int
+  feeBps      Int
+  memo        String
+  rail        String // LN | DEMO (CASHU unsupported — no invoice to verify)
+  invoice     String?
+  paymentHash String?
+  // ADR-394 FU-838: which rail minted the LN invoice (NWC = own hub, LNURL =
+  // PLATFORM_LN_ADDRESS fallback) and the LUD-21 verify URL when offered —
+  // the reconcile tick's settlement source.
+  issuer      String?
+  verifyUrl   String?
+  status      String   @default("PENDING") // PENDING | PAID
+  // ADR-372 D7.3: set by confirmPaymentByHash when the SELLER leg confirms
+  // while this fee is still PENDING. The ticket only flips to PAID (and
+  // provisioning only enqueues) once BOTH legs are done — whichever confirms
+  // last triggers the transition.
+  sellerLegConfirmedAt DateTime?
+  confirmedAt DateTime?
+  createdAt   DateTime @default(now())
+}
+
+// ADR-152 §A4 / PROB-002 A2: Mutual-Arbiter-Pattern for private-mode disputes.
+// Both parties nominate the same npub; once mutually accepted, the arbiter
+// can submit a signed verdict via DM. Verdict outcome is stored here for
+// audit + escrow release verification.
+// ADR-152 §4.1: DmMessage cache + history-view for private-mode DMs.
+// Rows are owned by the recipient (`ownerPubkey`) and store decrypted content
+// after the client has unwrapped the Gift Wrap. This gives us:
+//   - Server-side history (clients can re-fetch when they switch devices)
+//   - Inbox listing without each client having to scan the relay
+//   - Audit trail for the dispute flow
+// Datenschutz: no cross-user lookups; the index is on (ownerPubkey, createdAt).
+// The server is NOT the source of truth — the Nostr relay is — but the
+// cache gives faster inbox rendering and supports the AckPattern (Phase 2).
+model DmMessage {
+  id          String          @id @default(cuid())
+  ownerPubkey String // The recipient / inbox owner. The DECRYPTED content is stored under this key.
+  peerPubkey  String // The sender (or counterparty in 1:1 chats).
+  eventId     String          @unique // Nostr event id (Kind 14 legacy plaintext OR Kind 1059 gift wrap)
+  kind        Int // 14 = chat (legacy plaintext), 1059 = gift wrap
+  payload     String // The DECRYPTED content. Encrypted-at-rest is the deployment's concern (e.g. column-level encryption), not this schema.
+  ticketId    String? // Optional ticket context (for ticket-scoped chat)
+  visibility  TradeVisibility @default(PRIVATE) // All DmMessages are private by definition.
+  createdAt   DateTime        @default(now())
+
+  @@index([ownerPubkey, createdAt])
+  @@index([ownerPubkey, peerPubkey, createdAt])
+  @@index([ticketId])
+}
+
+model PrivateArbiter {
+  id                  String    @id @default(cuid())
+  ticketId            String
+  ticket              Ticket    @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  arbiterPubkey       String
+  nominatedByBuyer    Boolean   @default(false)
+  nominatedBySeller   Boolean   @default(false)
+  acceptedAt          DateTime?
+  rejectedAt          DateTime?
+  verdictNostrEventId String?
+  verdictOutcome      String? // RELEASE | CANCEL | SPLIT (per ADR-124/184 escrow rules)
+  verdictReasoning    String?
+  // ADR-184: SPLIT verdict percentages and fee
+  sellerPct           Int?
+  buyerPct            Int?
+  feePct              Int?
+  feeSats             Int?
+  feeRecipient        String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([ticketId, arbiterPubkey])
+  @@index([ticketId])
+  @@index([arbiterPubkey])
+}
+
+model Review {
+  id             String   @id @default(cuid())
+  ticketId       String
+  ticket         Ticket   @relation(fields: [ticketId], references: [id])
+  reviewerPubkey String
+  revieweePubkey String
+  stars          Int
+  content        String
+  nostrEventId   String?  @unique
+  createdAt      DateTime @default(now())
+
+  // ADR-307 D1: extra multi-dimension metrics, only present for AGENT_SETUP tickets.
+  agentMetrics AgentReviewMetrics?
+}
+
+// ADR-307 D1: multi-dimension review metrics for AGENT_SETUP tickets, 1:1 with
+// Review. Dimensions are all optional (1-5 int) — a reviewer may rate only
+// some of them. wouldReuse is a separate yes/no signal (D2).
+model AgentReviewMetrics {
+  id          String   @id @default(cuid())
+  reviewId    String   @unique
+  review      Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  accuracy    Int? // 1-5: correctness of the result
+  speed       Int? // 1-5: execution speed
+  reliability Int? // 1-5: reliability (no failures)
+  quality     Int? // 1-5: output quality (clarity, format)
+  wouldReuse  Boolean? // would book this agent again?
+  createdAt   DateTime @default(now())
+}
+
+model ColPointsEvent {
+  id        String   @id @default(cuid())
+  pubkey    String
+  user      User     @relation(fields: [pubkey], references: [pubkey], onDelete: Cascade)
+  delta     Int
+  reason    String
+  ticketId  String?
+  createdAt DateTime @default(now())
+}
+
+model Milestone {
+  id          String          @id @default(cuid())
+  ticketId    String
+  ticket      Ticket          @relation(fields: [ticketId], references: [id])
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      MilestoneStatus @default(PENDING)
+  invoice     String?
+  amountSats  Int?
+  completedAt DateTime?
+}
+
+// =============================================================================
+// ADR-031: Company & Catalog Management
+// =============================================================================
+
+model Company {
+  id                   String                @id @default(cuid())
+  ownerPubkey          String                @unique
+  name                 String
+  description          String?
+  address              String?
+  city                 String?
+  zipCode              String?
+  country              String?
+  openingHours         Json? // Native JSON (ADR-139): was String?
+  businessFields       Json? // Native JSON (ADR-139): was String?
+  coopRadius           Int? // km
+  terms                String? // HTML/Markdown – AGB
+  imprint              String? // HTML/Markdown – Impressum (ADR-112)
+  privacyPolicy        String? // HTML/Markdown – Datenschutzerklärung (ADR-112)
+  legalJurisdiction    String? // e.g. "Germany", "EU" (ADR-112)
+  taxId                String? // VAT-ID / Steuernummer (ADR-112)
+  logoUrl              String?
+  bannerUrl            String?
+  images               Json? // Native JSON (ADR-139): was String?
+  website              String?
+  email                String?
+  phone                String?
+  socialLinks          Json? // Native JSON (ADR-139): was String?
+  isActive             Boolean               @default(false)
+  hourlyRateSats       Int? // Stundenlohn für Milestone-Tickets (Sat/Hour)
+  lat                  Float? // ADR-199: geocoded from city+country
+  lng                  Float? // ADR-199: geocoded from city+country
+  nostrEventId         String?               @unique
+  publishedAt          DateTime?
+  // ADR-412 D2: persistent server-managed Nostr sub-key for this company's
+  // marketplace-facing listings (Offer/ProductCollection/ShippingOption).
+  // NOT the owner's login identity: a purpose-built delegate key, same
+  // category as AgentProfile.nostrPubkey (ADR-316). Generated once, reused
+  // for every publish so external NIP-99 clients see a stable author.
+  nostrListingPubkey     String?             @unique
+  nostrListingPrivkeyEnc String? // secretbox-encrypted (apps/server/lib/secretbox.ts)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  catalogs             Catalog[]
+  products             Product[] // ADR-395: all company products, with or without a catalog
+  reviews              CompanyReview[]       @relation("RevieweeCompany")
+  writtenReviews       CompanyReview[]       @relation("ReviewerCompany")
+  offers               Offer[] // ADR-065: Company's marketplace offers
+  cooperations         Cooperation[] // FU-511 (ADR-331 K): Company's corporate cooperations
+  deliveryTemplates    DeliveryTemplate[] // Vorlagen für Lieferbedingungen
+  cooperationTemplates CooperationTemplate[] // ADR-112
+  shippingOptions      ShippingOption[] // ADR-155: Kind 30406 shipping options
+  collections          ProductCollection[] // ADR-156: Kind 30405 product collections
+  // ADR-326 D10.3 / ADR-331 D5: corporate-branded AgentProfiles.
+  agentProfiles        AgentProfile[]
+  // ADR-326 D10.7 / ADR-328 D3: corporate-branded AgentNetworks (teams).
+  agentNetworks        AgentNetwork[]
+
+  // ADR-284: admin moderation block, independent of `isActive` — same
+  // rationale as Offer.blockedAt above.
+  blockedAt       DateTime?
+  blockedReason   String?
+  blockedByPubkey String?
+
+  // ADR-406 D6 (FU-913): viewport (bbox) marker lookups on the marketplace map.
+  @@index([lat, lng])
+}
+
+// ADR-340 D1: one Catalog concept for both products and agent setups.
+// PRODUCT catalogs are Company-scoped (companyId required, ownerPubkey null);
+// AGENT_SETUP catalogs are User-scoped (ownerPubkey required, companyId null).
+// The API enforces the per-type invariant; the schema is nullable in both
+// directions to let the foreign keys coexist.
+model Catalog {
+  id                 String               @id @default(cuid())
+  // ADR-340: nullable now; required + validated by the API for PRODUCT catalogs.
+  companyId          String?
+  company            Company?             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // ADR-340: null for PRODUCT, set for AGENT_SETUP.
+  ownerPubkey        String?
+  owner              User?                @relation("CatalogAgentSetupOwner", fields: [ownerPubkey], references: [pubkey], onDelete: Cascade)
+  catalogType        CatalogType          @default(PRODUCT)
+  standardCategoryId String?
+  standardCategory   StandardCategory?    @relation(fields: [standardCategoryId], references: [id])
+  name               String
+  description        String?
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  products           Product[]
+  // ADR-340: N:M agent memberships for AGENT_SETUP catalogs.
+  agentMembers       CatalogAgentMember[]
+
+  // Postgres treats NULLs as distinct in unique constraints, so this works
+  // for both axes — PRODUCT rows are unique by (companyId, name), AGENT_SETUP
+  // rows by (ownerPubkey, name), and cross-axis rows never collide.
+  @@unique([companyId, name])
+  @@unique([ownerPubkey, name])
+  @@index([companyId])
+  @@index([ownerPubkey])
+  @@index([catalogType])
+}
+
+// ADR-340 D1: N:M membership table that replaces AgentCatalogMember.
+// `addedAt` mirrors the old shape so membership history is preserved across
+// the fold.
+model CatalogAgentMember {
+  catalogId      String
+  catalog        Catalog      @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  agentProfileId String
+  agentProfile   AgentProfile @relation(fields: [agentProfileId], references: [id], onDelete: Cascade)
+  addedAt        DateTime     @default(now())
+
+  @@id([catalogId, agentProfileId])
+  @@index([agentProfileId])
+}
+
+// =============================================================================
+// ADR-059v2: Standard Category Registry (UNSPSC-referenced)
+// =============================================================================
+
+model StandardCategory {
+  id         String             @id @default(cuid())
+  parentId   String?
+  parent     StandardCategory?  @relation("StandardCategoryHierarchy", fields: [parentId], references: [id])
+  children   StandardCategory[] @relation("StandardCategoryHierarchy")
+  slug       String             @unique
+  name       String
+  nameKey    String // i18n key, e.g. "goods.electronics.smartphones"
+  unspscCode String?
+  offerType  OfferType          @default(SERVICE)
+  level      Int // 1 = main, 2 = sub, 3 = detail
+  sortOrder  Int                @default(0)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  // Reverse relations
+  products Product[]
+  catalogs Catalog[]
+}
+
+// ADR-078: Category model removed – StandardCategory is the single source of truth
+
+model Product {
+  id                 String            @id @default(cuid())
+  // ADR-395: catalog assignment is optional — a product always belongs to a
+  // Company (ownership axis); the catalog is an organizational grouping on top.
+  companyId          String?
+  company            Company?          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  catalogId          String?
+  catalog            Catalog?          @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  standardCategoryId String?
+  standardCategory   StandardCategory? @relation(fields: [standardCategoryId], references: [id])
+  name               String
+  description        String?
+  priceSats          Int
+  images             String? // JSON: string[]
+  sku                String?
+  stock              Int? // null = unlimited
+  isAvailable        Boolean           @default(true)
+  metadata           String? // JSON: additional fields
+  offers             Offer[] // ADR-066: Product↔Offer bridge (1:N – one product can have multiple offers)
+
+  // ADR-156: Product variation enrichment
+  productType       String? // simple | variable | variation
+  physicalType      String? // digital | physical
+  parentProductId   String? // for variation: points to parent variable product
+  specs             String? // JSON: ProductSpec[] = [{key, value}]
+  weight            String? // decimal string
+  weightUnit        String? // e.g. "kg"
+  dimensions        String? // LxWxH format
+  dimensionsUnit    String? // e.g. "cm"
+  listingVisibility String? @default("on-sale") // hidden | on-sale | pre-order
+  variantAxes       String? // JSON: VariantAxis[] (ADR-270)
+  variantValues     String? // JSON: Record<axisName, value> (ADR-270)
+
+  // ADR-277 D-6: derived union of gammaTags across this product's offers[] — kept fresh by a
+  // one-time backfill + a sync hook on offer publish (see apps/server/scripts/backfill-product-gamma-tags.ts
+  // and gamma-category-map.ts::syncProductGammaTags). Native array (unlike this model's other
+  // JSON-string list fields) to match Offer.gammaTags and allow the same GIN facet pattern.
+  gammaTags String[] @default([])
+
+  createdAt DateTime @default(now())
+
+  collectionMemberships ProductCollectionMember[]
+
+  @@index([gammaTags], type: Gin)
+  @@index([companyId])
+}
+
+model DeliveryTemplate {
+  id               String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name             String // Vorlagenname
+  deliveryTimeDays Int // Lieferzeit in Tagen
+  deliveryCostSats Int // Lieferkosten in Sats
+  isDefault        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  offers           Offer[] // Offers die diese Vorlage verwenden
+}
+
+model CompanyReview {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation("RevieweeCompany", fields: [companyId], references: [id])
+  reviewerPubkey String
+  reviewer       Company  @relation("ReviewerCompany", fields: [reviewerPubkey], references: [ownerPubkey])
+  stars          Int
+  content        String
+  createdAt      DateTime @default(now())
+}
+
+// =============================================================================
+// ADR-155: Structured Shipping — Kind 30406 Shipping Option
+// =============================================================================
+
+enum ShippingServiceType {
+  STANDARD
+  EXPRESS
+  OVERNIGHT
+  PICKUP
+}
+
+model ShippingOption {
+  id               String              @id @default(cuid())
+  d                String              @unique // Kind 30406 d-tag
+  companyId        String
+  company          Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title            String
+  baseCost         String // decimal string, e.g. "12.99"
+  currency         String // ISO-4217, e.g. "EUR"
+  countries        String // comma-separated ISO-3166-1 alpha-2
+  service          ShippingServiceType @default(STANDARD)
+  carrier          String?
+  regions          String? // comma-separated ISO-3166-2
+  durationMin      Int?
+  durationMax      Int?
+  durationUnit     String? // H | D | W | M | Y
+  location         String?
+  geohash          String?
+  weightMin        String? // decimal string
+  weightMax        String?
+  weightUnit       String? // e.g. "kg"
+  dimMin           String? // LxWxH format
+  dimMax           String?
+  dimUnit          String? // e.g. "cm"
+  priceWeight      String? // decimal per-unit-weight
+  priceWeightCur   String? // ISO-4217
+  priceVolume      String?
+  priceVolumeCur   String?
+  priceDistance    String?
+  priceDistanceCur String?
+  nostrEventId     String?             @unique
+  isActive         Boolean             @default(true)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  collectionRefs CollectionShippingOption[]
+
+  @@index([companyId, isActive])
+  @@index([countries])
+}
+
+// =============================================================================
+// ADR-156: Product Variations & Collections — Kind 30405 Product Collection
+// =============================================================================
+
+enum ListingVisibility {
+  HIDDEN
+  ON_SALE
+  PRE_ORDER
+}
+
+model ProductCollection {
+  id           String   @id @default(cuid())
+  d            String   @unique // Kind 30405 d-tag
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  title        String
+  summary      String?
+  image        String? // URL
+  location     String?
+  geohash      String?
+  nostrEventId String?  @unique
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  products        ProductCollectionMember[]
+  shippingOptions CollectionShippingOption[]
+
+  @@index([companyId, isActive])
+}
+
+model ProductCollectionMember {
+  id           String            @id @default(cuid())
+  collectionId String
+  collection   ProductCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sortOrder    Int               @default(0)
+
+  @@unique([collectionId, productId])
+}
+
+model CollectionShippingOption {
+  id               String            @id @default(cuid())
+  collectionId     String
+  collection       ProductCollection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  shippingOptionId String
+  shippingOption   ShippingOption    @relation(fields: [shippingOptionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, shippingOptionId])
+}
+
+// =============================================================================
+// ADR-109: Cooperation Feature — Cooperation + CoopMilestone models
+// =============================================================================
+
+enum CooperationStatus {
+  DRAFT
+  OPEN // Phase A: Accepting applications
+  ACCEPTED // Phase B: Partner confirmed
+  PAID // Phase B: Escrow funded
+  IN_PROGRESS // Phase C: Work started (was: ACTIVE)
+  COMPLETED // Phase D: All milestones done
+  DISPUTED // Phase E: In dispute
+  CANCELLED // Aborted
+}
+
+enum CoopMilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  ACCEPTED
+  DISPUTED
+}
+
+model Cooperation {
+  id                    String                     @id @default(cuid())
+  title                 String
+  description           String?
+  initiatorPubkey       String
+  partnerPubkey         String?
+  cooperationType       CooperationType?
+  partnerMode           String?                    @default("WHOLE")
+  budgetSats            Int
+  timeline              String?
+  skills                String?
+  status                CooperationStatus          @default(OPEN)
+  nostrProposalId       String?
+  nostrAcceptId         String?
+  categoryCode          String?
+  images                String?
+  // ADR-376 D3: 160×120 WebP thumbnails, 1:1 with the images[] JSON-decoded
+  // from `images` above — same shape/purpose as Offer.imageThumbs (ADR-194
+  // FU-194-A), generated via the same makeThumbsFromImages() helper. Closes
+  // FU-301-D: /api/cooperations/discover ships this instead of raw images.
+  imageThumbs           Json?
+  deadline              DateTime?
+  requirements          String?
+  // ADR-328 D4: snapshot at creation — true if any CoopMilestone of this
+  // Cooperation was assigned an AgentProfile (matches the backfill rule in
+  // 20260822_adr328_cooperation_is_agent_orchestration/migration.sql). ADR-310
+  // D2 sets CoopMilestone.assigneeAgentProfileId at creation; the API does
+  // not currently expose reassignment, so this flag is effectively write-once
+  // — no recompute helper needed. ADR-326 D10 closed an unrelated companyId
+  // gap on the live Offer path.
+  isAgentOrchestration  Boolean                    @default(false)
+  // ADR-331 D1: snapshot of the Guide's `agentSupervision` axis at creation
+  // (ADR-328 D1). Null for executor='human' cooperations and for legacy
+  // rows created before this column existed (server treats null as 'human'
+  // on resume). Same SOT discipline as agentBillingModel / isAgentOrchestration
+  // — derived on the server (not trusted from the client) at POST /api/cooperations.
+  // Validated against CoopAgentSupervisionSchema ('human' | 'autonomous').
+  agentSupervision      String?
+  // FU-511 (ADR-331 K): snapshot of the initiator's Company at POST. Client
+  // sends its own companyId (Corporate-role Projects/Tenders already have a
+  // real company selector); server validates ownership by lookup before
+  // persisting — same validate-by-lookup pattern as Offer.companyId
+  // (ADR-326 D10.1 / FU-491), never trusted verbatim. Recovers the Corporate
+  // role on resume for human-only cooperations, which have no
+  // assigneeAgentProfile to read companyId from (ADR-331 D5 covers only the
+  // agent-assigned case).
+  companyId             String?
+  company               Company?                   @relation(fields: [companyId], references: [id])
+  offerId               String?                    @unique
+  lightningInvoice      String?
+  paymentHash           String?
+  offer                 Offer?                     @relation("OfferCooperation", fields: [offerId], references: [id])
+  milestones            CoopMilestone[]
+  milestoneApplications CoopMilestoneApplication[]
+  // ADR-352 D1: agent-execution workspaces anchored to this Cooperation (one
+  // per distinct Offer used anywhere in its orchestration pipeline).
+  workspaces            Workspace[]
+  escrowTrade           EscrowTrade?
+
+  // ADR-152: Trade visibility for Cooperation (default PUBLIC, no breaking change)
+  visibility  TradeVisibility @default(PUBLIC)
+  disputeMode DisputeMode     @default(PUBLIC)
+
+  // PROB-003 B-α: per-Cooperation escrow sub-wallet for private-mode isolation.
+  escrowSubWalletId String?
+
+  // ADR-204: escrow status for cooperation (mirrors Ticket.escrowStatus).
+  // Tracks the multi-phase escrow state: FUNDED → RELEASE_PHASE_1 → … → RELEASED_FULL.
+  escrowStatus String?
+
+  // ADR-329 D2: payment structure — SMART_ORDER (3 auto phases 25/50/25) vs.
+  // MILESTONE (custom phases). Purely descriptive metadata; both structures
+  // materialize as CoopMilestone rows. Default keeps existing rows/behavior.
+  ticketType TicketType @default(MILESTONE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tickets   Ticket[]
+
+  // ADR-301: index (status, createdAt DESC) for /api/cooperations/discover
+  // which sorts all OPEN cooperations by createdAt DESC. Without this index
+  // Postgres full-table-sorts the Cooperation table even at ~10 rows
+  // (live measured 2-4 s response on beta on 2026-08-18).
+  @@index([status, createdAt(sort: Desc)])
+}
+
+enum CooperationType {
+  TRANSACTIONAL
+  PRODUCTION
+  SALES
+  SERVICE
+  EDUCATIONAL
+  CROWDFUNDING
+  BARTER
+  TENDER
+}
+
+model CoopMilestone {
+  id                     String                     @id @default(cuid())
+  cooperationId          String
+  cooperation            Cooperation                @relation(fields: [cooperationId], references: [id], onDelete: Cascade)
+  milestoneIndex         Int
+  title                  String
+  description            String?
+  acceptanceCriteria     String?
+  dueDate                DateTime?
+  amountSats             Int
+  status                 CoopMilestoneStatus        @default(PENDING)
+  partnerPubkey          String?
+  evidence               String?
+  lightningInvoice       String?
+  paymentHash            String?
+  // Direct-pay (escrow off): when the partner was paid straight from the
+  // initiator, and how it was proven — 'LN_PREIMAGE' (initiator's preimage
+  // matched the partner's invoice) or 'PARTNER_CONFIRMED' (partner attested
+  // receipt, e.g. eCash). Null = not paid through Colabonate.
+  paidAt                 DateTime?
+  paidRail               String?
+  nostrEventId           String?
+  completedAt            DateTime?
+  applications           CoopMilestoneApplication[]
+  messages               CoopMilestoneMessage[]
+  steps                  CoopMilestoneStep[]
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  // ADR-310 D2/D4: orchestration step assignment — which AgentProfile is
+  // matched/booked to execute this milestone. Null for ordinary (non-agent)
+  // cooperations and for orchestration steps not yet assigned.
+  assigneeAgentProfileId String?
+  assigneeAgentProfile   AgentProfile?              @relation(fields: [assigneeAgentProfileId], references: [id], onDelete: SetNull)
+
+  // ADR-352 D1a: AgentProfile↔Offer is many-to-one (an agent can back several
+  // AGENT_SETUP offers at different price points/configs) — this identifies
+  // the specific Offer booked for this milestone, needed to anchor the
+  // execution Workspace (D1) and read its agentConfigSealed (D2). Validated
+  // at POST /api/cooperations to belong to assigneeAgentProfileId and be an
+  // active AGENT_SETUP offer.
+  assigneeOfferId String?
+  assigneeOffer   Offer?  @relation(fields: [assigneeOfferId], references: [id], onDelete: SetNull)
+
+  // ADR-331 D1: per-step capability requirements for the agent-orchestration
+  // flow (Cooperation.isAgentOrchestration=true). JSON-encoded string[] —
+  // mirrors CooperationTemplate.orchestrationSteps[i].requiredAgentCapabilities
+  // (server-side full DAG form) and the client-side OrchestrationStepDraft
+  // (FU-480 linear subset). Null for human-MILESTONE cooperations. Persisted
+  // at POST /api/cooperations from the orchestration-steps editor input.
+  requiredCapabilities String?
+
+  @@index([assigneeAgentProfileId])
+  @@index([assigneeOfferId])
+}
+
+// ADR-332 D2 (V2 nested pipeline): a step is a unit of AGENT work nested
+// INSIDE a CoopMilestone. The milestone stays the escrow/release unit (money
+// follows the milestone); steps carry capabilities + per-step agent
+// assignment. Supersedes the flat mapping (ADR-328 D2 / ADR-331 D1) where one
+// milestone == one pipeline step: legacy rows keep their milestone-level
+// assigneeAgentProfileId/requiredCapabilities (write-once, never migrated);
+// new agent-orchestration drafts write here. isAgentOrchestration is derived
+// from BOTH levels so legacy and new rows are indistinguishable.
+model CoopMilestoneStep {
+  id          String        @id @default(cuid())
+  milestoneId String
+  milestone   CoopMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  stepIndex   Int
+  title       String
+
+  // Same JSON-encoded string[] convention as CoopMilestone.requiredCapabilities
+  requiredCapabilities String?
+
+  // Per-step agent assignment (Match-Preview selection). Null = unassigned;
+  // an unmatched step ships unassigned, same rule as the flat flow.
+  assigneeAgentProfileId String?
+  assigneeAgentProfile   AgentProfile? @relation(fields: [assigneeAgentProfileId], references: [id], onDelete: SetNull)
+
+  // ADR-352 D1a: same "resolve a specific Offer, not just an AgentProfile"
+  // requirement as CoopMilestone.assigneeOfferId above.
+  assigneeOfferId String?
+  assigneeOffer   Offer?  @relation(fields: [assigneeOfferId], references: [id], onDelete: SetNull)
+
+  // ADR-352 D4 (closes FU-514): tracked independently of the anchor
+  // Workspace's own lifecycle, since one Workspace can host multiple steps
+  // (possibly across several milestones) over its lifetime. A CoopMilestone
+  // becomes confirmable for buyer release once every one of its steps is
+  // COMPLETED (enforced in PATCH /api/cooperations/:id/milestones/:mid).
+  status CoopMilestoneStepStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assigneeAgentProfileId])
+  @@index([assigneeOfferId])
+  @@index([milestoneId])
+}
+
+// ADR-352 D4
+enum CoopMilestoneStepStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model CoopMilestoneMessage {
+  id           String        @id @default(cuid())
+  milestoneId  String
+  milestone    CoopMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  authorPubkey String
+  action       String?
+  message      String?
+  createdAt    DateTime      @default(now())
+
+  @@index([milestoneId])
+}
+
+model CoopMilestoneApplication {
+  id              String        @id @default(cuid())
+  cooperationId   String
+  cooperation     Cooperation   @relation(fields: [cooperationId], references: [id], onDelete: Cascade)
+  milestoneId     String
+  milestone       CoopMilestone @relation(fields: [milestoneId], references: [id], onDelete: Cascade)
+  applicantPubkey String
+  message         String?
+  status          String        @default("PENDING")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([cooperationId, milestoneId, applicantPubkey])
+}
+
+// =============================================================================
+// ADR-112: CooperationTemplate – Reusable cooperation templates
+// =============================================================================
+
+model CooperationTemplate {
+  id                   String   @id @default(cuid())
+  name                 String
+  description          String?
+  cooperationType      String // transactional | production | sales | service | educational | crowdfunding | barter | tender
+  budgetRange          String? // JSON: { min: number, max: number }
+  timelinePreset       String? // "2weeks" | "1month" | "3months" | "ongoing"
+  requiredSkills       String? // JSON: string[]
+  defaultMilestones    String? // JSON: [{ title, percentage }]
+  categoryCode         String?
+  terms                String? // Free text or reference to Company.terms
+  images               String? // JSON: string[] — template context images (data URLs)
+  isPublic             Boolean  @default(false)
+  createdByPubkey      String
+  companyId            String?
+  company              Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  // ADR-310 D1: multi-agent orchestration templates. isAgentOrchestration
+  // gates the CoopGuide orchestration flow; orchestrationSteps is an
+  // OrchestrationStep[] (order, title, requiredAgentCapabilities,
+  // inputFromStep, outputToSteps) — Zod-validated in
+  // apps/server/services/agent-orchestration.ts.
+  isAgentOrchestration Boolean  @default(false)
+  orchestrationSteps   Json?
+}
+
+// =============================================================================
+// ADR-125: Foundation DAO & Arbitration Council (M0 bootstrap)
+// Operationalizes docs/protocols/governance/dao-codex.md Chapter II.1 Level 3.
+// M0 scope: entity + single admin. Dispute/Verdict models added in M1.
+// =============================================================================
+
+enum DaoStatus {
+  BOOTSTRAP // v0.1 — single admin, 1P1V bypass
+  ACTIVE // v1.0 — full Codex operation (Phase 4+)
+  DISSOLVED
+}
+
+enum DaoRole {
+  ADMIN // Invite/revoke members, update config
+  ARBITRATOR // Publish verdicts (M1)
+  MEDIATOR // Reserved for Level 2 (Phase 3)
+}
+
+enum DaoMemberStatus {
+  PENDING // Invited, not yet accepted (M2)
+  ACTIVE
+  REVOKED
+}
+
+enum QuorumType {
+  SINGLE // Any single ARBITRATOR verdict enforces (bootstrap default)
+  MAJORITY // >50% of ACTIVE arbitrators (M2)
+  THRESHOLD // thresholdN of total required (M2)
+}
+
+// ADR-200: DAO discovery classification
+enum DaoType {
+  COMMUNITY // General-purpose association (Verein-like)
+  PROTOCOL // Protocol governance body
+  INVESTMENT // Investment club / fund
+  SERVICE // Freelancer or service-provider collective
+  GRANT // Grant-giving organisation
+  SOCIAL // Social-impact / NGO
+  INDUSTRY // Trade association / Branchenverband
+  COLLECTOR // Asset or collectible community
+}
+
+// ADR-200: Membership access model
+enum MembershipType {
+  OPEN // Anyone can join immediately
+  APPLICATION // Membership requires applying and approval
+  INVITE_ONLY // Must receive an invitation from an existing member
+  TOKEN_GATED // Requires a Nostr credential or token to join
+}
+
+model Dao {
+  id           String    @id // e.g. "colabonate-foundation"
+  name         String
+  codexHash    String // SHA-256 of codex markdown (UTF-8)
+  codexVersion String
+  codexUrl     String // relative path to codex doc
+  status       DaoStatus @default(BOOTSTRAP)
+  nostrEventId String? // Kind 30022 dao_creation event ID
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  // ADR-200: Profile (Verein-style presentation)
+  description String?
+  purpose     String?
+  logoUrl     String?
+  bannerUrl   String?
+  website     String?
+  foundedAt   DateTime?
+
+  // ADR-200: Classification
+  daoType        DaoType        @default(COMMUNITY)
+  membershipType MembershipType @default(OPEN)
+  focusAreas     String? // JSON: string[]
+  language       String? // ISO 639-1 (de, en, …)
+
+  // ADR-200: Location (Vereinssitz)
+  country      String?
+  region       String?
+  city         String?
+  isOnlineOnly Boolean @default(false)
+
+  // ADR-200: Gallery images (JSON: string[] of data URLs, max 5)
+  images String? // JSON: string[]
+
+  members             DaoMember[]
+  config              DaoConfig?
+  disputes            Dispute[]
+  proposals           DaoProposal[]
+  governanceConfig    DaoGovernanceConfig?
+  governanceOverrides DaoGovernanceTypeOverride[]
+  treasury            DaoTreasury?
+}
+
+model DaoMember {
+  id                String          @id @default(cuid())
+  daoId             String
+  dao               Dao             @relation(fields: [daoId], references: [id])
+  pubkey            String
+  role              DaoRole
+  status            DaoMemberStatus @default(ACTIVE)
+  credentialEventId String? // Kind 30021 arbitrator credential event ID
+  invitedBy         String? // pubkey of inviter (M2)
+  acceptedAt        DateTime?
+  revokedAt         DateTime?
+  addedAt           DateTime        @default(now())
+
+  @@unique([daoId, pubkey])
+}
+
+model DaoConfig {
+  daoId                String      @id
+  dao                  Dao         @relation(fields: [daoId], references: [id])
+  quorumType           QuorumType  @default(SINGLE)
+  thresholdN           Int         @default(1)
+  coolingOffDays       Int         @default(7)
+  mediationDays        Int         @default(14)
+  verdictDeadlineHours Int         @default(48)
+  // ADR-127: Dispute Appeal config
+  appealWindowHours    Int         @default(72) // 0 = appeal disabled (SINGLE-quorum bootstrap)
+  appealQuorumType     QuorumType? // null = same as base quorum
+  appealThresholdN     Int?
+  // ADR-184: default recipient for escrow arbitration/mediation fees
+  escrowFeeRecipient   String?
+}
+
+enum DisputeStatus {
+  OPEN
+  COUNCIL_QUEUE
+  IN_REVIEW
+  RESOLVED_PENDING // NEW: verdict issued, appeal window open, escrow not settled
+  APPEALED // NEW: appeal accepted, round-2 arbitration in progress
+  RESOLVED
+  WITHDRAWN
+}
+
+enum VerdictOutcome {
+  RELEASE
+  CANCEL
+  SPLIT
+}
+
+model Dispute {
+  id                 String          @id @default(cuid())
+  disputeId          String          @unique
+  ticketId           String
+  ticket             Ticket          @relation(fields: [ticketId], references: [id])
+  daoId              String          @default("colabonate-foundation")
+  dao                Dao             @relation(fields: [daoId], references: [id])
+  status             DisputeStatus   @default(OPEN)
+  outcome            VerdictOutcome?
+  openedAt           DateTime        @default(now())
+  resolvedAt         DateTime?
+  arbitratorPubkey   String?
+  escalatedAt        DateTime?
+  quorumTypeSnapshot QuorumType?
+  thresholdNSnapshot Int?
+  verdictIssuedAt    DateTime? // when round-N verdict was issued (appeal window clock)
+  disclosureDeadline DateTime? // ADR-152: deadline for Tier 1 payload disclosure; null for Tier 0
+  appealRequest      AppealRequest? // back-reference (single appeal per dispute)
+
+  verdicts    ArbitrationVerdict[]
+  disclosures PayloadDisclosure[]
+  escrowDisputeLink EscrowDisputeLink?
+
+  @@index([status])
+  @@index([ticketId])
+}
+
+model ArbitrationVerdict {
+  id               String         @id @default(cuid())
+  verdictId        String         @unique
+  disputeId        String
+  dispute          Dispute        @relation(fields: [disputeId], references: [id])
+  arbitratorPubkey String
+  outcome          VerdictOutcome
+  reasoning        String?
+  evidenceEventIds String?
+  // ADR-184: SPLIT verdict percentages and fee
+  sellerPct        Int?
+  buyerPct         Int?
+  feePct           Int?
+  feeSats          Int?
+  feeRecipient     String?
+  createdAt        DateTime       @default(now())
+  round            Int            @default(1)
+
+  @@index([disputeId, round])
+}
+
+model PayloadDisclosure {
+  id                 String   @id @default(cuid())
+  disputeId          String
+  dispute            Dispute  @relation(fields: [disputeId], references: [id])
+  disclosedByPubkey  String
+  method             String   @default("plaintext") // "plaintext" | "re_encrypted"
+  commitmentVerified Boolean  @default(false)
+  payloadJson        String? // JSON-serialized CommercialPayload (null if re_encrypted)
+  nostrEventId       String?  @unique // NIP-17 gift-wrap event id (for re_encrypted method)
+  createdAt          DateTime @default(now())
+
+  @@index([disputeId])
+  @@index([disclosedByPubkey])
+}
+
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminPubkey String
+  action      String
+  targetId    String?
+  payload     String
+  createdAt   DateTime @default(now())
+
+  @@index([adminPubkey])
+  @@index([action])
+}
+
+// ADR-127: Council Operations — Email notification audit log
+// Tracks outbound email notifications from the Council notification system.
+// Notification failures are logged but never block the dispute/verdict write path.
+model NotificationLog {
+  id        String   @id @default(cuid())
+  eventType String // "dispute_opened" | "dispute_escalated" | "verdict_issued"
+  recipient String // email address or pubkey (if no email)
+  refId     String // dispute ID or verdict ID
+  status    String // "sent" | "failed" | "skipped_no_email" | "skipped_no_smtp"
+  errorMsg  String?
+  createdAt DateTime @default(now())
+
+  @@index([eventType])
+  @@index([refId])
+}
+
+// In-app notification (server-backed) — distinct from NotificationLog above
+// (which is the council/DAO EMAIL-delivery audit table). These rows are the
+// account-scoped notification feed read/managed via /api/notifications and the
+// MCP notification tools; they are written server-side at ticket/cooperation/
+// dispute lifecycle events. The pre-existing client-side notification drawer
+// (NotificationContext, localStorage + polling diffs) is left unchanged.
+model Notification {
+  id          String   @id @default(cuid())
+  ownerPubkey String // recipient (inbox owner)
+  type        String // "ticket" | "cooperation" | "dispute" | "bounty" (ADR-397 D5) | "ai" (ADR-402 D12)
+  title       String
+  message     String?
+  relatedId   String? // ticket id / cooperation id / dispute id
+  actionUrl   String?
+  meta        Json?
+  read        Boolean  @default(false)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerPubkey, createdAt])
+  @@index([type])
+}
+
+// ADR-127: Dispute Appeal — single-shot re-hearing by adversely-affected party
+// Single appeal per dispute; round-2 quorum higher than round-1; escrow deferred
+model AppealRequest {
+  id                String    @id @default(cuid())
+  disputeId         String    @unique
+  dispute           Dispute   @relation(fields: [disputeId], references: [id])
+  appealerPubkey    String
+  reason            String
+  evidenceEventIds  String // JSON array of Nostr event IDs
+  originalVerdictId String
+  nostrEventId      String?
+  createdAt         DateTime  @default(now())
+  resolvedAt        DateTime?
+  finalVerdictId    String?
+
+  @@index([appealerPubkey])
+  @@index([createdAt])
+}
+
+model NostrAuthChallenge {
+  nonce      String    @id
+  issuedFor  String?
+  createdAt  DateTime  @default(now())
+  consumedAt DateTime?
+
+  @@index([createdAt])
+}
+
+// =============================================================================
+// ADR-128: DAO Governance Layer — Proposal, Vote, Treasury Models
+// ADR-142: Proposal types, comment period, codex amendment flow
+// =============================================================================
+
+enum ProposalStatus {
+  DRAFT
+  COMMENT_PERIOD
+  ACTIVE
+  PASSED
+  REJECTED
+  EXECUTED
+  CANCELLED
+}
+
+enum ProposalType {
+  NORMAL_DECISION
+  CODEX_AMENDMENT
+  TREASURY_SPENDING
+  SANCTION
+  PROTOCOL_UPGRADE // Phase 4 — disabled in UI
+  NEW_DAO_CREATION // Phase 4 — disabled in UI
+}
+
+enum TxStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}
+
+model DaoProposal {
+  id           String @id @default(cuid())
+  daoId        String
+  dao          Dao    @relation(fields: [daoId], references: [id])
+  authorPubkey String
+  nostrEventId String @unique // Kind 30420
+
+  title             String
+  content           String
+  executionStrategy String
+  executionPayload  Json?
+
+  proposalType ProposalType @default(NORMAL_DECISION)
+
+  votingStart       DateTime?
+  votingEnd         DateTime?
+  snapshotTimestamp Int?
+
+  commentPeriodEnd DateTime?
+
+  status    ProposalStatus @default(DRAFT)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  votes    DaoVote[]
+  comments DaoProposalComment[]
+
+  @@index([daoId])
+  @@index([status])
+  @@index([authorPubkey])
+  @@index([proposalType])
+}
+
+model DaoVote {
+  id           String      @id @default(cuid())
+  proposalId   String
+  proposal     DaoProposal @relation(fields: [proposalId], references: [id])
+  voterPubkey  String
+  nostrEventId String      @unique // Kind 30421
+  choice       String // FOR | AGAINST | ABSTAIN
+  votingPower  Int
+  strategyUsed String
+  createdAt    DateTime    @default(now())
+
+  @@unique([proposalId, voterPubkey])
+  @@index([proposalId])
+  @@index([voterPubkey])
+}
+
+model DaoGovernanceConfig {
+  daoId                      String @id
+  dao                        Dao    @relation(fields: [daoId], references: [id])
+  proposalValidationStrategy String
+  votingStrategies           String // JSON: Strategy[]
+  quorumType                 String @default("SIMPLE")
+  quorumThreshold            Int    @default(1)
+  votingDelaySeconds         Int    @default(0)
+  minVotingPeriodSeconds     Int    @default(86400) // 24h
+  maxVotingPeriodSeconds     Int    @default(604800) // 7d
+}
+
+// ADR-142 §5: Per-type governance overrides (stricter-than-Codex only)
+model DaoGovernanceTypeOverride {
+  daoId               String
+  proposalType        ProposalType
+  quorumPercent       Int
+  majorityPercent     Int
+  votingPeriodSeconds Int
+
+  dao Dao @relation(fields: [daoId], references: [id])
+
+  @@id([daoId, proposalType])
+}
+
+// ADR-142 §7: Comment read-model (Nostr Kind 30423 source-of-truth)
+model DaoProposalComment {
+  id           String      @id @default(cuid())
+  proposalId   String
+  proposal     DaoProposal @relation(fields: [proposalId], references: [id])
+  authorPubkey String
+  nostrEventId String      @unique // Kind 30423
+  content      String
+  createdAt    DateTime    @default(now())
+
+  @@index([proposalId])
+  @@index([authorPubkey])
+}
+
+model DaoTreasury {
+  id              String   @id @default(cuid())
+  daoId           String   @unique
+  dao             Dao      @relation(fields: [daoId], references: [id])
+  escrowAccountId String?
+  multisigPubkey  String?
+  balanceSats     BigInt   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  transactions TreasuryTransaction[]
+}
+
+model TreasuryTransaction {
+  id         String      @id @default(cuid())
+  treasuryId String
+  treasury   DaoTreasury @relation(fields: [treasuryId], references: [id])
+  type       String // FUND | RELEASE | SPEND
+  amountSats BigInt
+  toPubkey   String?
+  proposalId String?
+  status     TxStatus    @default(PENDING)
+  createdAt  DateTime    @default(now())
+
+  @@index([treasuryId])
+  @@index([proposalId])
+}
+
+// =============================================================================
+// ADR-139: International Offer Pipeline — GeoLookup, Outbox, Nostr Ingestion
+// =============================================================================
+
+model GeoLookup {
+  id        String   @id @default(cuid())
+  country   String // ISO 3166-1 alpha-2
+  region    String?
+  city      String?
+  lat       Float
+  lng       Float
+  provider  String // "nominatim" | "mapbox"
+  fetchedAt DateTime @default(now())
+
+  @@unique([country, region, city])
+  @@index([country, region])
+}
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  DONE
+  DEAD
+}
+
+model OutboxEvent {
+  id          String            @id @default(cuid())
+  aggregate   String // "offer" | "company" | ...
+  aggregateId String
+  eventType   String // "upsert" | "delete"
+  payload     Json
+  status      OutboxEventStatus @default(PENDING)
+  attempts    Int               @default(0)
+  lastError   String?
+  createdAt   DateTime          @default(now())
+  processedAt DateTime?
+
+  @@index([status, createdAt])
+}
+
+enum RemoteOfferCandidateStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  EXPIRED
+}
+
+model RemoteOfferCandidate {
+  id              String                     @id @default(cuid())
+  remoteEventId   String                     @unique
+  remoteRelay     String
+  remoteAuthor    String
+  // ADR-363 D4: NIP-99 `d`-tag (addressable-event identity). The compound
+  // unique (remoteAuthor, remoteDTag) makes a re-published listing (new event
+  // id, same `d`-tag) resolve to the SAME candidate row instead of inserting a
+  // duplicate; Postgres treats NULLs as distinct, so non-addressable events
+  // (remoteDTag = null) keep their remoteEventId-unique identity.
+  remoteDTag      String?
+  rawEvent        Json
+  normalized      Json
+  status          RemoteOfferCandidateStatus @default(PENDING_REVIEW)
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectedReason  String?
+  promotedOfferId String?
+  fetchedAt       DateTime                   @default(now())
+  expiresAt       DateTime
+
+  @@unique([remoteAuthor, remoteDTag])
+  @@index([status, fetchedAt])
+  @@index([remoteAuthor])
+  @@index([remoteRelay])
+}
+
+// ADR-302: Persistent foundation-wide toggles that are platform-scoped (no
+// single DAO semantically owns them — ingest runs even when no community DAO
+// exists). Singleton row: id=1. Defaults to the most conservative value
+// (reviewed-by-default per ADR-145); admins opt in via the admin UI.
+model FoundationSettings {
+  id                          Int      @id @default(1)
+  remoteCandidatesAutoApprove Boolean  @default(false)
+  // ADR-423: when set (1–29), the auto-approve tick approves PENDING_REVIEW
+  // candidates older than N days; null = timer off. Immediate mode above
+  // takes precedence over the timer.
+  remoteCandidatesAutoApproveDays Int?
+  // ADR-405: runtime sales & visibility switches for the AI Assistant and MCP
+  // surfaces. Close-only / hide-only — the env gates (AI_HOSTED_ENABLED,
+  // MCP_PAYWALL_ENABLED) stay authoritative (ADR-402 D7/D9).
+  aiSalesPaused               Boolean  @default(false)
+  mcpSalesPaused              Boolean  @default(false)
+  aiAssistantSectionHidden    Boolean  @default(false)
+  mcpSectionHidden            Boolean  @default(false)
+  // ADR-412 FU-948: stable platform-level Nostr signing identity for
+  // bidirectional transaction mirror events (Ticket/Cooperation/Milestone/
+  // Dispute). Neither buyer nor seller "owns" these records, so a neutral
+  // per-platform key is used instead of the per-entity listing key. Fixes
+  // the previous ephemeral-key-per-call bug, which silently broke NIP-01
+  // addressable-event replacement semantics (kind+pubkey+d must stay stable
+  // across a ticket's PENDING→ACCEPTED→...→COMPLETED lifecycle).
+  platformNostrPubkey         String?  @unique
+  platformNostrPrivkeyEnc     String?
+  updatedBy                   String?
+  updatedAt                   DateTime @updatedAt
+}
+
+// ADR-156: GDPR Art. 17 (Right to Erasure) — anonymized audit trail for account
+// deletion. Stores a NON-reidentifiable record: SHA-256 hash of the deleted
+// pubkey, NOT the plaintext pubkey (the pubkey is a persistent personal
+// identifier under GDPR). Regulators verify erasure by re-hashing a queried
+// pubkey and matching on userPubkeyHash.
+//
+// Lifecycle: created with completedAt=NULL; the cascade + audit write happen
+// synchronously in the same request, so completedAt is set immediately. The
+// nip09* / relayResponses columns are filled later by the client ACK endpoint
+// after the user has signed + published the Kind 5 deletion request via NIP-07
+// (the server never holds the privkey — ADR-141, client-side signing).
+model AccountDeletionLog {
+  id                String    @id @default(cuid())
+  userPubkeyHash    String // SHA-256(pubkey) — anonymized, NOT re-identifiable
+  trigger           String    @default("USER") // "USER" (self-service) | "ADMIN" (admin-triggered)
+  adminPubkey       String? // set only when trigger = "ADMIN"
+  requestedAt       DateTime  @default(now())
+  completedAt       DateTime?
+  deletedEntities   Json // counts: { offersAnonymized, ticketsAnonymized, walletsDeleted, ... }
+  eventIdsToDelete  Json      @default("[]") // Nostr event ids the client is asked to NIP-09-delete
+  nip09Kind5EventId String? // id of the Kind 5 the client published (reported via ACK)
+  nip09RelaysOk     Int       @default(0) // relays that accepted the Kind 5
+  relayResponses    Json      @default("{}") // { relay: { success: bool, error?: string } }
+  gdprLegalBasis    String    @default("Art. 17 DSGVO – Right to Erasure")
+
+  @@index([userPubkeyHash])
+  @@index([requestedAt])
+}
+
+model BetaFeedback {
+  id         String    @id @default(cuid())
+  kind       String // "bug" | "idea" | "question"
+  title      String
+  body       String
+  route      String?
+  userAgent  String?
+  pubkey     String?
+  userEmail  String?
+  status     String    @default("new") // new | triaged | in_progress | shipped | wontfix
+  read       Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  triagedAt  DateTime?
+  resolvedAt DateTime?
+  resolvedIn String? // PR or commit SHA that closed this entry
+
+  @@index([status, createdAt])
+  @@index([pubkey])
+  @@index([read, createdAt])
+}
+
+// ADR-400: newsletter double opt-in. PENDING = signed up, confirmation email
+// sent; CONFIRMED = email owner clicked the confirm link; UNSUBSCRIBED = opted
+// out (kept as a suppression list so a re-import never re-adds them).
+enum NewsletterStatus {
+  PENDING
+  CONFIRMED
+  UNSUBSCRIBED
+}
+
+model NewsletterSubscriber {
+  id             String           @id @default(cuid())
+  email          String           @unique
+  source         String           @default("footer") // where the signup happened
+  status         NewsletterStatus @default(PENDING)
+  // Opaque per-row token used by both the confirm and unsubscribe links. Only
+  // its holder (the inbox owner) can advance the row, so it is never returned
+  // by the public API or the admin list.
+  token          String           @unique
+  // Set when the signup email matches an existing User.email — lets the
+  // audience join reach registered accounts without a second opt-in.
+  pubkey         String?
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  // ADR-402 D16.4: proof of consent (GDPR Art. 7(1)). Campaigns only reach
+  // CONFIRMED rows with consentAt set. consentSource: footer | signup-email |
+  // signup-onboarding | signup-alby | settings. consentTextVersion identifies
+  // the opt-in wording that was shown.
+  consentAt          DateTime?
+  consentSource      String?
+  consentTextVersion String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @default(now()) @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model SupportTip {
+  id         String   @id @default(cuid())
+  pubkey     String
+  amountSats Int
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+}
+
+// =============================================================================
+// ADR-271: Bookable Resources & Time-Based Offers — NIP-52 calendar layer
+// Nostr-authoritative availability + seller-countersigned bookings.
+// =============================================================================
+
+// ADR-271 D1: SPACE = date-range booking of identical units (house, room,
+// studio; capacity = number of identical units, usually 1). SESSION = fixed
+// occurrence with N seats (workshop, consultation; capacity = seats).
+enum ResourceKind {
+  SPACE
+  SESSION
+}
+
+model BookableResource {
+  id            String       @id @default(cuid())
+  ownerPubkey   String // soft ref → User.pubkey (owner signs all NIP-52 events; no FK — owner may be a remote seller)
+  companyId     String? // soft ref → Company.id (optional storefront grouping)
+  kind          ResourceKind
+  title         String
+  description   String?
+  timezone      String // IANA, e.g. "Europe/Berlin" — authoritative for all interval math (ADR-271 D8)
+  capacity      Int          @default(1) // SPACE: identical units. SESSION: seats
+  minUnits      Int? // SPACE: min nights. SESSION: unused
+  maxUnits      Int?
+  leadTimeHours Int          @default(0) // no bookings starting sooner than this
+  bufferMinutes Int          @default(0) // gap enforced between two bookings (overlap math only, never charged)
+  // ADR-369: SESSION availability style. FIXED = fixed occurrence with seats
+  // (ADR-271). OPEN = buyers pick a start time + whole-hour duration inside the
+  // recurring window (service time blocks; capacity must be 1). SPACE ignores it.
+  bookingStyle  String       @default("FIXED") // Volatile: FIXED | OPEN, zod-validated
+  slotMinutes   Int          @default(60) // OPEN: start-time grid step in minutes (v1: 60 only)
+  country       String? // ISO 3166-1 alpha-2
+  city          String?
+  lat           Float?
+  lng           Float?
+  calendarD     String       @unique // kind 31924 d-tag — the resource's public calendar
+  nostrEventId  String?      @unique
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  offers    Offer[]
+  rules     ResourceAvailabilityRule[]
+  blackouts ResourceBlackout[]
+  bookings  Booking[]
+
+  @@index([ownerPubkey, isActive])
+  @@index([kind])
+}
+
+// ADR-271 D2: recurring open windows. Availability is DERIVED at query time
+// (open windows − blackouts − confirmed bookings); never materialised.
+// WEEKLY_WINDOW: open on `weekday` (0=Sunday…6=Saturday) from startMinute to
+// endMinute (minutes from resource-local midnight, end exclusive) — SESSION.
+// DATE_RANGE: open continuously from validFrom to validUntil — SPACE.
+model ResourceAvailabilityRule {
+  id          String           @id @default(cuid())
+  resourceId  String
+  resource    BookableResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  ruleKind    String // 'WEEKLY_WINDOW' | 'DATE_RANGE', zod-validated (volatile)
+  weekday     Int? // 0=Sunday … 6=Saturday (WEEKLY_WINDOW only)
+  startMinute Int? // minutes from local midnight, inclusive (WEEKLY_WINDOW only)
+  endMinute   Int? // exclusive (WEEKLY_WINDOW only)
+  validFrom   DateTime?
+  validUntil  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([resourceId, ruleKind])
+}
+
+// ADR-271 D2: explicit closure (maintenance, private use, holiday).
+model ResourceBlackout {
+  id         String           @id @default(cuid())
+  resourceId String
+  resource   BookableResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  start      DateTime // UTC instant, inclusive
+  end        DateTime // exclusive
+  reason     String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([resourceId, start])
+}
+
+// ADR-271 D3/D4: server-side MIRROR of the Nostr-authoritative booking layer.
+// A row exists only for requests the server saw; the seller's countersigned
+// booking event (bookingEventId) is the ONLY thing that makes a booking real
+// (D3 invariant). Conflict rule among overlapping CONFIRMED bookings: lowest
+// event created_at wins, ties break on lexicographically lowest event id (D4).
+model Booking {
+  id             String           @id @default(cuid())
+  resourceId     String
+  resource       BookableResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  offerId        String? // offer through which the request was made (soft ref — a resource may back many offers)
+  buyerPubkey    String
+  sellerPubkey   String
+  status         String           @default("REQUESTED") // Volatile: REQUESTED | CONFIRMED | DECLINED | CANCELLED | LAPSED, zod-validated
+  start          DateTime // UTC instant, half-open interval [start, end) (D7)
+  end            DateTime // exclusive (D7)
+  units          Int              @default(1) // SPACE: nights; SESSION: seats
+  priceSats      Int? // total = offer.priceSats × units, computed before the request is sent (D6)
+  requestEventId String?          @unique // buyer's kind 31925 RSVP (published by the buyer)
+  bookingEventId String?          @unique // seller's countersigned 31922/31923 — the commitment
+  eventCreatedAt DateTime? // created_at of the countersigned event (D4 conflict rule)
+  holdExpiresAt  DateTime? // advisory soft-hold TTL (D4) — courtesy only, never blocks a valid countersignature
+  expiresAt      DateTime? // REQUESTED expiry = createdAt + offer.confirmationWindowHours (D5)
+  note           String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([resourceId, start])
+  @@index([sellerPubkey, status])
+  @@index([buyerPubkey, status])
+}
+
+// ── ADR-362 D2: ICP Escrow Trade mirror (ADR-355 D4 mirror-not-truth) ─────────
+// The canister is the source of truth; these models cache canister state for
+// lists/search/timeline and announce their own drift (never silently rewritten
+// to match). No money-moving action is authorized from the mirror.
+
+model EscrowTrade {
+  id                   String      @id @default(cuid())
+  // Canister-internal nat64 trade id, stored as string (exceeds MAX_SAFE_INTEGER).
+  // Unique per canister instance, NOT globally: the canister allocates trade ids
+  // from a per-instance counter that resets on every fresh install (ADR-362 review
+  // fix 2026-09-02), so id 0..N repeats across canister principals.
+  canisterTradeId      String
+  // The escrow canister principal this trade lives on.
+  canisterId           String
+  network              String      @default("ic") // Volatile: EscrowNetwork, zod-validated
+  btcAddress           String
+  buyerPubkey          String
+  sellerPubkey         String
+  buyerRefundAddress   String
+  sellerPayoutAddress  String
+  expectedAmountSats   Int // sats (nat64 in canister, fits Int at the app layer)
+  // Vec<Milestone> = [{ pctBps, released }] — schedule + release progress.
+  milestones           Json
+  state                String      @default("PENDING_FUNDING") // Volatile: EscrowTradeState
+  settledBuyerBps      Int? // DisputeSettled{buyer_bps}
+  settledSellerBps     Int? // DisputeSettled{seller_bps}
+  timeoutAt            String? // nat64 nanoseconds since epoch (string)
+  fundedAt             String? // nat64 nanoseconds since epoch (string)
+  tradeTermsHash       String? // 32-byte SHA-256 hex
+  // Which code was verified when funds were committed (detectable drift later).
+  moduleHashAtCreation String?
+  // ADR-204 XOR: exactly one of ticketId / cooperationId is set at the API layer.
+  ticketId             String?     @unique
+  ticket               Ticket?     @relation(fields: [ticketId], references: [id])
+  cooperationId        String?     @unique
+  cooperation          Cooperation? @relation(fields: [cooperationId], references: [id])
+  // NIP-17 end-to-end conversation id for the trade-scoped thread (ADR-358).
+  endToEndId           String?
+  // Frozen identity/contact snapshots for the parties (ADR-357 D2 + dispute
+  // position). Captured at trade creation and re-captured when a dispute opens,
+  // so the partner cards can always show WHO is involved even if a party later
+  // edits or deletes their Nostr profile. Never read from the live profile once
+  // present; the dispute surface relies on this freeze.
+  buyerIdentitySnapshot  Json?
+  sellerIdentitySnapshot Json?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  events                EscrowTradeEvent[]
+  verificationSnapshots EscrowVerificationSnapshot[]
+  disputeLinks          EscrowDisputeLink[]
+  evidenceExports       EvidenceExport[]
+
+  @@unique([canisterId, canisterTradeId])
+  @@index([buyerPubkey])
+  @@index([sellerPubkey])
+  @@index([state])
+  @@index([canisterId, network])
+}
+
+model EscrowTradeEvent {
+  id        String      @id @default(cuid())
+  tradeId   String
+  trade     EscrowTrade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  // Volatile: EscrowTradeEventKind, zod-validated. The timeline's + dossier's source.
+  kind      String
+  detail    Json? // structured payload (state, call args, chain observations, drift)
+  message   String?
+  createdAt DateTime    @default(now())
+
+  @@index([tradeId, createdAt])
+}
+
+model EscrowVerificationSnapshot {
+  id         String       @id @default(cuid())
+  tradeId    String?
+  trade      EscrowTrade? @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  canisterId String
+  network    String       @default("ic")
+  moduleHash String
+  controllers Json // string[]
+  observedAt DateTime     @default(now())
+
+  @@index([canisterId, network, observedAt])
+}
+
+model EscrowDisputeLink {
+  id        String      @id @default(cuid())
+  tradeId   String
+  trade     EscrowTrade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  // App-side Dispute row the canister dispute maps to (GAP F-8). One dispute
+  // maps to at most one canister trade (1:1), hence @unique.
+  disputeId String      @unique
+  dispute   Dispute     @relation(fields: [disputeId], references: [id])
+  linkedAt  DateTime    @default(now())
+
+  @@index([tradeId])
+}
+
+model EvidenceExport {
+  id                String      @id @default(cuid())
+  tradeId           String
+  trade             EscrowTrade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  scope             Json // disclosure-scope snapshot
+  // Capability-scoped, expiring, revocable share token (ADR-359 D6).
+  shareToken        String?     @unique
+  revokedAt         DateTime?
+  exportedByPubkey  String?
+  createdAt         DateTime    @default(now())
+
+  @@index([tradeId])
+}
+
+// ADR-417: buyer-side record of a Zap Out purchase of a REMOTE offer (direct payment to the
+// seller's Lightning address; no escrow, no reputation, the platform never holds funds).
+model RemoteOrder {
+  id               String    @id @default(cuid())
+  buyerPubkey      String
+  offerId          String
+  quantity         Int       @default(1)
+  payeePubkey      String // pubkey whose Kind-0 lud16 is paid
+  payeeRole        String // "seller" | "author"
+  payeeLud16       String
+  zap              Boolean   @default(true) // false = plain LNURL-pay (endpoint has no NIP-57 support)
+  amountSats       Int // server-computed, fixed at creation
+  amountBasis      String // "sats" | "exact-btc" | "rate" | "stablecoin-as-usd"
+  priceAmount      String? // listing price snapshot (foreign currency)
+  priceCurrency    String?
+  rateSnapshot     Json?
+  status           String    @default("QUOTED") // QUOTED | INVOICED | PAID | EXPIRED | FAILED
+  quoteExpiresAt   DateTime
+  zapRequestId     String?
+  bolt11           String?
+  paymentHash      String?
+  verifyUrl        String? // LUD-21
+  invoiceExpiresAt DateTime?
+  preimage         String? // buyer's proof of payment, verified against paymentHash
+  paidAt           DateTime?
+  lastError        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([buyerPubkey, createdAt])
+  @@index([offerId])
+  @@index([status, quoteExpiresAt])
+}

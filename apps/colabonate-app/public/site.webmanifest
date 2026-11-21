@@ -1,0 +1,17 @@
+{
+  "name": "Colabonate",
+  "short_name": "Colabonate",
+  "description": "Buy, sell & cooperate — directly, peer-to-peer. Bitcoin Lightning payments, Nostr identity, community-governed escrow.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e242c",
+  "theme_color": "#1e242c",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

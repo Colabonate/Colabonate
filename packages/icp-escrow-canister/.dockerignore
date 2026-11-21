@@ -1,0 +1,6 @@
+target
+.dfx
+*.did
+README.md
+Dockerfile
+.dockerignore

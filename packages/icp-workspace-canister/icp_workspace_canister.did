@@ -1,0 +1,357 @@
+// `search_context` result row (ADR-321 D3): the matched chunk's content plus
+// its similarity score, never the raw embedding.
+type ContextSearchResult = record {
+  content : text;
+  source : text;
+  created_at : nat64;
+  score : float64;
+};
+type CreateWorkspaceArgs = record {
+  // ADR-312 D6 — see `Workspace.billing_model`. Validated at creation via
+  // `billing::validate_billing_model`.
+  billing_model : text;
+  ttl_seconds : nat64;
+  buyer_pubkey : text;
+  cycle_budget : nat;
+  agent_profile_id : text;
+  external_id : text;
+};
+// # HTTP Header.
+// 
+// Represents a HTTP header.
+// 
+// See [`HttpRequestArgs::headers`] and [`HttpRequestResult::headers`].
+type HttpHeader = record {
+  // Value of the header.
+  value : text;
+  // Name of the header.
+  name : text;
+};
+// # HTTP Request Result
+// 
+// Result type of [`http_request`](https://internetcomputer.org/docs/current/references/ic-interface-spec/#ic-http_request).
+type HttpRequestResult = record {
+  // The response status (e.g. 200, 404).
+  status : nat;
+  // The response’s body.
+  body : blob;
+  // List of HTTP response headers and their corresponding values.
+  headers : vec HttpHeader;
+};
+// A tool call parked behind the buyer-approval gate (FU-434 Slice C).
+type PendingToolCall = record {
+  id : nat64;
+  url : text;
+  body : opt text;
+  parked_at : nat64;
+};
+type Result = variant { Ok; Err : WorkspaceError };
+type Result_1 = variant { Ok : WorkspaceStatus; Err : WorkspaceError };
+type Result_2 = variant { Ok : WorkspaceOutput; Err : WorkspaceError };
+type Result_3 = variant { Ok : ToolCallOutcome; Err : WorkspaceError };
+type Result_4 = variant { Ok : WorkspaceState; Err : WorkspaceError };
+type Result_5 = variant { Ok : nat64; Err : WorkspaceError };
+type Result_6 = variant { Ok : text; Err : WorkspaceError };
+type Result_7 = variant { Ok : vec WorkspaceOutput; Err : WorkspaceError };
+type Result_8 = variant { Ok : vec ContextSearchResult; Err : WorkspaceError };
+type Result_9 = variant { Ok : bool; Err : WorkspaceError };
+// `call_tool` result: either the tool executed immediately and produced a
+// signed output, or the tool is approval-gated and the call parked — the
+// buyer then executes it via `approve_tool_call` with the returned id.
+type ToolCallOutcome = variant {
+  Executed : WorkspaceOutput;
+  PendingApproval : nat64;
+};
+// # Transform Args.
+// 
+// ```text
+// record {
+// response : http_response;
+// context : blob;
+// }
+// ```
+// 
+// See [`TransformContext`].
+type TransformArgs = record {
+  // Context for response transformation
+  context : blob;
+  // Raw response from remote service, to be transformed
+  response : HttpRequestResult;
+};
+type WorkspaceError = variant {
+  // The HTTPS outcall itself failed (rejected by the subnet/IC, e.g. local
+  // replica without outcall support). Transport-level; no response existed.
+  OutcallFailed : record { reason : text };
+  // Buyer-signed action whose timestamp is not strictly greater than the
+  // last accepted one (replay / stale), or too far in the future.
+  ReplayRejected : record { reason : text };
+  // `approve_tool_call` with an approval id that isn't parked.
+  ApprovalNotFound : record { id : nat64 };
+  // `call_tool` with a URL no `config.tools` allowlist entry covers.
+  ToolNotAllowed : record { url : text };
+  // `inject_config` called on a workspace that already has a config —
+  // injection is one-time by design (FU-434 Slice B).
+  ConfigAlreadyInjected;
+  InvalidTransition : record { action : text; from : WorkspaceState };
+  NotFound;
+  // The provider/tool endpoint answered, but with a non-2xx status or an
+  // unparseable body. The reason carries the status code, never the
+  // response body (it can echo request data — FU-195-C discipline).
+  ProviderError : record { reason : text };
+  // A harness action (chat, tool call) needs the injected config, but none
+  // was injected yet (FU-434 Slice B).
+  ConfigNotInjected;
+  // Creation args failed validation (empty id/pubkey, zero TTL).
+  InvalidArgs : record { reason : text };
+  // Caller is not the authorized server principal (FU-434 Slice A). The
+  // text-encoded principal the canister was initialized with, so an
+  // operator can tell a misconfigured server from an intruder.
+  Unauthorized : record { expected : text };
+  // Buyer-signed action (FU-434 Slice C) whose BIP-340 signature does not
+  // verify against the workspace's `buyer_pubkey`. The reason names the
+  // failed check, never key material (FU-195-C).
+  SignatureVerificationFailed : record { reason : text };
+  // Feature is designed (ADR-311) but not yet implemented — names the
+  // follow-up that closes it.
+  NotImplemented : record { pending_followup : text };
+  // `expire_workspace` called before the retention window elapsed.
+  NotExpired : record { now : nat64; expires_at : nat64 };
+  // `destroy_workspace` called on a workspace that isn't `Expired` yet.
+  NotDestroyable : record { state : WorkspaceState };
+  // The canister-held signing key could not be obtained (raw_rand rejected
+  // or returned an invalid secp256k1 scalar). Transient by nature — the
+  // caller may retry.
+  SigningFailed : record { reason : text };
+};
+// A single agent output (ADR-311 D4). `signature` is the BIP-340
+// execution-proof over the canonical `sig::output_message` payload, produced
+// by the canister-held key (`get_output_pubkey`) when the output is recorded
+// via `record_output` (FU-434 Slice A) — always `Some` for any output the
+// canister itself recorded; `None` remains encodable for forward
+// compatibility only.
+type WorkspaceOutput = record {
+  // Content reference — canister-internal path or external URL.
+  uri : text;
+  signature : opt blob;
+  // JSON metadata bag (mime type, size, source tool call, ...).
+  metadata : text;
+  created_at : nat64;
+  // ADR-322 D5: running SHA-256 hash-chain link — `chain_link(prev_hash,
+  // sig::output_message(...))`, where `prev_hash` is the previous output's
+  // `chain_hash` or `audit_chain::genesis_hash(external_id)` for the first
+  // output. Tamper-evident: `lib.rs::verify_audit_chain` recomputes this
+  // from `output_type`/`uri`/`metadata`/`created_at` and flags any
+  // mismatch. Always 32 bytes for any output this canister recorded.
+  chain_hash : blob;
+  // Free-form kind discriminator, e.g. "text" | "file" | "chat-log".
+  output_type : text;
+};
+// Workspace lifecycle (ADR-311 D2). Mirrors the server-side
+// `WorkspaceStatusSchema` in `apps/server/lib/enums.ts` exactly — the server
+// row and the canister state are two views of the same state machine, with
+// the canister owning the RUNNING/SUSPENDED transitions (budget-driven) and
+// the server owning creation, completion, and TTL expiry.
+type WorkspaceState = variant {
+  Suspended;
+  PendingDeploy;
+  Running;
+  Completed;
+  Expired;
+};
+// D5 `checkWorkspaceStatus` response: state plus the budget numbers a buyer
+// (or the relaying server) needs to decide on a cycle reload.
+type WorkspaceStatus = record {
+  cycle_budget : nat;
+  state : WorkspaceState;
+  remaining_cycles : nat;
+  cycles_used : nat;
+};
+// Candid-facing redacted view of `Workspace` for the open `get_workspace`
+// query. Identical field-for-field EXCEPT `config`, which collapses to
+// `has_config`: the decrypted config contains the owner's LLM API key in
+// plaintext, and the query surface is callable by anyone — serializing it
+// out would hand the key to any replica/mainnet caller (FU-195-C discipline;
+// the key never leaving the canister is exactly the ADR-306 trade-off).
+// The internal `Workspace` is unchanged; the mapping lives in `From`.
+type WorkspaceView = record {
+  id : nat64;
+  // ADR-312 D6 — see `Workspace.billing_model`. Non-secret, safe on the
+  // open query surface (unlike `config`).
+  billing_model : text;
+  ttl_seconds : nat64;
+  // FU-589 — see `Workspace.authorized_signers`. Pubkeys aren't secret,
+  // safe on the open query surface (same reasoning as `buyer_pubkey`).
+  authorized_signers : vec text;
+  activated_at : opt nat64;
+  last_buyer_action_at : opt nat64;
+  created_at : nat64;
+  buyer_pubkey : text;
+  cycle_budget : nat;
+  state : WorkspaceState;
+  agent_profile_id : text;
+  next_approval_id : nat64;
+  external_id : text;
+  pending_tool_calls : vec PendingToolCall;
+  completed_at : opt nat64;
+  cycles_used : nat;
+  expires_at : opt nat64;
+  outputs : vec WorkspaceOutput;
+  // `true` once a config has been injected — the only thing the query
+  // surface ever reveals about `config`.
+  has_config : bool;
+};
+service : (principal) -> {
+  // FU-589 (ADR-349 D1): authorizes an additional signer — an invited
+  // WorkspaceMember — for buyer-direct actions, full parity with the buyer's
+  // own key (explicit product decision, 2026-08-30: an invited collaborator
+  // is a second, equally-trusted actor, not a restricted one). Server-gated
+  // and idempotent, mirroring `add_cycles`/`complete_workspace`: the server
+  // calls this right after committing the `WorkspaceMember` row in Postgres
+  // (`POST /:id/members`), the canister mirrors the fact.
+  // Caller must be the server principal (FU-434 Slice A).
+  add_authorized_signer : (nat64, text) -> (Result);
+  // D3/D5 `addCycles` — server-relayed after the buyer's LN reload payment is
+  // confirmed. Tops up the budget; resumes a suspended workspace iff the new
+  // budget covers what's already consumed.
+  // Caller must be the server principal (FU-434 Slice A).
+  add_cycles : (nat64, nat) -> (Result_1);
+  // Executes a parked tool call after the buyer signs the approval (FU-434
+  // Slice C). The signed message binds to the approval id; the parking itself
+  // happened inside an already-signed `call_tool`.
+  approve_tool_call : (nat64, nat64, nat64, blob) -> (Result_2);
+  // Buyer-initiated tool call (FU-434 Slice C): allowlisted REST tools only
+  // (`config.tools`; `!`-prefixed entries park as pending approvals). Executed
+  // calls hit the tool endpoint via HTTPS outcall (POST with `body`, GET
+  // without) and record the response body as a signed output.
+  call_tool : (nat64, text, opt text, nat64, blob) -> (Result_3);
+  // D5 `checkWorkspaceStatus` — state plus budget numbers, cheap enough to poll.
+  check_workspace_status : (nat64) -> (Result_1) query;
+  // Buyer-confirmed completion (ADR-311 D2): `Running|Suspended -> Completed`,
+  // stamps `completed_at` and the retention deadline
+  // (`expires_at = now + ttl_seconds`). Outputs stay readable until expiry.
+  // Caller must be the server principal (FU-434 Slice A).
+  complete_workspace : (nat64) -> (Result_4);
+  // Server-relayed workspace creation (ADR-311 D2/D5): the Colabonate backend
+  // calls this after the buyer's AGENT_SETUP ticket is paid. Creates the
+  // workspace in `PendingDeploy` — it only flips to `Running` via
+  // `start_workspace` once deployment has actually finished.
+  // Caller must be the server principal (FU-434 Slice A).
+  create_workspace : (CreateWorkspaceArgs) -> (Result_5);
+  // D5 `destroyWorkspace` — only legal from `Expired`: outputs must outlive
+  // their retention window before the workspace record is removed.
+  // Caller must be the server principal (FU-434 Slice A).
+  destroy_workspace : (nat64) -> (Result);
+  // Permissionless key bootstrap (FU-434 Slice B): generates the canister
+  // keypair on first call (same lazy logic as `record_output`) and returns the
+  // x-only hex pubkey. The owner client needs this *before* any output exists
+  // to seal the workspace config; `get_output_pubkey` stays the cheap query
+  // read for the already-generated case.
+  ensure_output_key : () -> (Result_6);
+  // Permissionless expiry after the retention window — `Completed -> Expired`.
+  // The time check is the whole guard (same pattern as the escrow canister's
+  // `claim_timeout_refund`).
+  expire_workspace : (nat64) -> (Result_4);
+  // X-only (BIP-340) public key of the canister-held output-signing key,
+  // hex-encoded (64 chars) — the verification key for every
+  // `WorkspaceOutput::signature`. `None` until the first `record_output` call
+  // generates the key (honest empty, not an error: no key exists before the
+  // first signing).
+  get_output_pubkey : () -> (opt text) query;
+  // D5 `getOutputs`. Outputs recorded via `record_output` carry a BIP-340
+  // execution proof; an empty list is honest, not an error: a legitimately
+  // quiet workspace and a not-yet-productive one are indistinguishable from
+  // outside.
+  get_outputs : (nat64) -> (Result_7) query;
+  // Open query, so it returns the redacted `WorkspaceView`: the injected
+  // config (with the owner's plaintext LLM API key) never leaves the canister
+  // over the query surface — callers get `has_config` instead (FU-195-C).
+  get_workspace : (nat64) -> (opt WorkspaceView) query;
+  // One-time encrypted config injection (FU-434 Slice B / FU-353): the server
+  // relays the owner's NIP-44 v2 ciphertext (sealed client-side to the
+  // canister pubkey from `ensure_output_key`) and never sees the plaintext.
+  // Only legal while the workspace is `Running`; a second injection is
+  // rejected with `ConfigAlreadyInjected`.
+  // Caller must be the server principal (FU-434 Slice A).
+  inject_config : (nat64, text, text) -> (Result);
+  // Buyer-direct chat (FU-434 Slice C): verifies the buyer's signature over
+  // `colabonate-workspace-v1:post_message:{id}:{timestamp}:{content}`, records
+  // the user message as a signed output, runs a single-turn LLM call against
+  // the injected config, records the reply as a signed output, and books the
+  // outcall's cycle cost. The caller is anonymous — the signature is the
+  // authorization.
+  // 
+  // ADR-321 D1/D3 (RAG): before calling the LLM, retrieves the top-5 most
+  // similar prior chunks from this workspace's context index and folds them
+  // into the request as extra system context (`llm::build_chat_request`);
+  // after both the user and assistant turns are recorded, embeds and indexes
+  // each of them for future retrieval. Both steps degrade gracefully — an
+  // unconfigured/failing embedding provider (e.g. `anthropic`, which has none)
+  // never blocks the chat reply itself, it just runs without workspace context.
+  post_message : (nat64, text, nat64, blob) -> (Result_2);
+  // D3 metering entry point — the agent harness (FU-434) records consumption
+  // here after every metered action. Reaching or exceeding the budget suspends
+  // the workspace (`Running -> Suspended`).
+  // Caller must be the server principal (FU-434 Slice A).
+  record_cycle_usage : (nat64, nat) -> (Result_1);
+  // D4/D5 output recording with an execution proof (FU-434 Slice A): only
+  // legal while the workspace is `Running`. The canister signs the canonical
+  // `sig::output_message` payload with its own key (lazily generated on first
+  // use) and stores the 64-byte BIP-340 signature on the output — verifiable
+  // externally against `get_output_pubkey`. Content honesty note: the canister
+  // attests *that it recorded* this output at `created_at`, not that an LLM
+  // produced the bytes behind `uri` — the harness (Slice C) supplies them.
+  // Caller must be the server principal (FU-434 Slice A).
+  record_output : (nat64, text, text, text) -> (Result_2);
+  // FU-589: revokes a previously-authorized signer. Idempotent — removing a
+  // pubkey that isn't currently authorized (e.g. a retried relay after an
+  // earlier `add_authorized_signer` call never reached the canister) is a
+  // no-op success, not an error, same "canister mirrors, server is
+  // authoritative" precedent as every other relay in this file.
+  // Caller must be the server principal (FU-434 Slice A).
+  remove_authorized_signer : (nat64, text) -> (Result);
+  // Introspection/debug entry point for the ADR-321 context index — embeds
+  // `query` and returns the `top_k` most similar chunks with their similarity
+  // score. Server-gated (like `record_output`): the embedding outcall costs
+  // cycles, and no buyer-facing UI calls this yet (the RAG retrieval inside
+  // `post_message` is automatic and needs no explicit search). Must be an
+  // `update`, not a `query` — IC forbids HTTPS outcalls from query calls.
+  search_context : (nat64, text, nat32) -> (Result_8);
+  // ADR-352 D1 (FU-607): server-gated cross-agent pipeline handoff. When a
+  // Cooperation-orchestration step (Offer A) completes and the next step is
+  // assigned to a *different* Offer (B), the server carries step A's final
+  // output into workspace B's context index directly — bypassing
+  // `post_message` entirely, because that method's authorization IS the
+  // buyer's own signature over the exact canonical content; the server
+  // forging or prepending to that content would invalidate the whole
+  // buyer-signing scheme. Indexing straight into `context_index` (the same
+  // path `try_index_content` already uses for real chat turns) means the very
+  // first real `post_message` in workspace B automatically retrieves this
+  // context via the existing D3 RAG lookup — no protocol change needed there.
+  // 
+  // Requires config already injected (embedding needs a configured provider,
+  // same precondition as `search_context`) — the server only calls this right
+  // after a successful `inject_config`, so this is expected to always hold at
+  // the real call site, not a corner case being papered over. Best-effort like
+  // every other embedding path in this file: an embedding-provider failure is
+  // swallowed by `try_index_content`, never surfaced as an error, since a
+  // handoff-context miss must never look like a broken workspace.
+  seed_context : (nat64, text, text) -> (Result);
+  // Deployment-finished hook: `PendingDeploy -> Running`. In the final
+  // architecture (ADR-311 D7) the canister starts itself and publishes
+  // presence; for the current server-relayed deployment this is the explicit
+  // flip the server (FU-432) or an operator calls after deploy.
+  // Caller must be the server principal (FU-434 Slice A).
+  start_workspace : (nat64) -> (Result_4);
+  // Transform for HTTPS outcalls: drops headers so all replicas agree on the
+  // transformed response (headers like timestamps differ per replica).
+  transform_response : (TransformArgs) -> (HttpRequestResult) query;
+  // ADR-322 D5: recomputes the audit hash-chain from `w.outputs` and confirms
+  // every stored `chain_hash` matches — the "provable by anyone" half of D5's
+  // promise. Pure recomputation over already-stored fields (no signing, no
+  // outcall), so this is a `query`, not an `update`. Any external verifier
+  // (future audit-trail UI — FU-380/FU-465) can run the identical
+  // recomputation itself from `get_outputs`; this entry point just saves them
+  // re-implementing `audit_chain::chain_link` client-side.
+  verify_audit_chain : (nat64) -> (Result_9) query;
+  whoami : () -> (principal) query;
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@col/cashu",
+  "version": "0.0.1",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@cashu/cashu-ts": "^4.5.1"
+  }
+}

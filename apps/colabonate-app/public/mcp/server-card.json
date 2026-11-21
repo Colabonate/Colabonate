@@ -1,0 +1,39 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/v1/server-card.schema.json",
+  "name": "app.colabonate/mcp",
+  "title": "Colabonate",
+  "version": "1.1.0",
+  "description": "Colabonate marketplace: find offers, buy with Direct-Pay, cooperate, bounties, DAO governance.",
+  "websiteUrl": "https://colabonate.app",
+  "icons": [
+    {
+      "src": "https://colabonate.app/favicon.svg",
+      "mimeType": "image/svg+xml",
+      "sizes": ["any"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://colabonate.app/mcp",
+      "supportedProtocolVersions": ["2025-06-18"],
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Optional. Bearer token minted by the user at https://colabonate.app/ai/connect. Without it the server offers read-only guest access to public data.",
+          "isRequired": false,
+          "isSecret": true,
+          "placeholder": "Bearer <token>"
+        }
+      ]
+    }
+  ],
+  "_meta": {
+    "app.colabonate/links": {
+      "agentInstructions": "https://colabonate.app/agents.md",
+      "llms": "https://colabonate.app/llms.txt",
+      "connectGuide": "https://colabonate.app/ai/connect",
+      "skill": "https://colabonate.app/.well-known/agent-skills/colabonate/SKILL.md"
+    }
+  }
+}
