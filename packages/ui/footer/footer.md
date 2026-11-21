@@ -79,4 +79,4 @@ Die Komponente verwendet ausschließlich Design-Tokens – keine hardcoded CSS-W
 
 ## Related
 
-- [ADR-082](../../../docs/decisions/082-dual-variant-footer-component.md) – Dual-Variant Footer Component
+- ADR-082 – Dual-Variant Footer Component

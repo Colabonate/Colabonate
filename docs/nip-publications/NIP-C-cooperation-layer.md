@@ -49,11 +49,11 @@ exclusively in centralized databases. Publishing them as Nostr events enables:
 
 | NIP | Role |
 |-----|------|
-| [NIP-01](01.md) | Base protocol, event structure, addressable events |
+| [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) | Base protocol, event structure, addressable events |
 | [NIP-A](NIP-A-service-marketplace-and-identity.md) | Offer discovery layer (30402); `ticket_type: cooperation` forward-compat tag |
 | [NIP-B](NIP-B-transaction-layer.md) | Ticket Created (30407) + Status Update (30408); `ticket_type: milestone` |
-| [NIP-57](57.md) | Lightning Zap receipts (9735); milestone payment settlement |
-| [NIP-98](98.md) | HTTP Auth; authenticates server-side cooperation state transitions |
+| [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) | Lightning Zap receipts (9735); milestone payment settlement |
+| [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) | HTTP Auth; authenticates server-side cooperation state transitions |
 
 ---
 
@@ -443,11 +443,11 @@ ends, clients SHOULD prefer the new kinds (30414/30415).
 
 ## References
 
-- [NIP-01](01.md) — Base Nostr protocol
+- [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) — Base Nostr protocol
 - [NIP-A](NIP-A-service-marketplace-and-identity.md) — Colabonate Marketplace Layer (30402, 30404, 30405, 30406)
 - [NIP-B](NIP-B-transaction-layer.md) — Transaction Layer (30407, 30408)
-- [NIP-57](57.md) — Lightning Zaps
-- [NIP-98](98.md) — HTTP Auth
-- [docs/protocols/core/nostr-events.md](../protocols/core/nostr-events.md) — Full kind reference
-- [docs/protocols/workflows/cooperation-protocol.md](../protocols/workflows/cooperation-protocol.md) — Cooperation workflow
-- [docs/decisions/108-nip-c-cooperation-layer.md](../decisions/108-nip-c-cooperation-layer.md) — NIP-C design decisions
+- [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) — Lightning Zaps
+- [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) — HTTP Auth
+- [docs/protocols/core/nostr-events.md](https://github.com/Colabonate/Colabonate_Protocol/blob/main/docs/protocols/core/nostr-events.md) — Full kind reference
+- [docs/protocols/workflows/cooperation-protocol.md](https://github.com/Colabonate/Colabonate_Protocol/blob/main/docs/protocols/workflows/cooperation-protocol.md) — Cooperation workflow
+- docs/decisions/108-nip-c-cooperation-layer.md — NIP-C design decisions

@@ -173,7 +173,7 @@ When adding a new app to the monorepo, always import both files in `index.css`:
 4. Export in `packages/ui/index.ts`
 5. Showcase in Playground at `apps/playground/src/pages/`
 
-For details: [FIGMA-MCP.md](./FIGMA-MCP.md)
+For details: FIGMA-MCP.md
 
 ---
 

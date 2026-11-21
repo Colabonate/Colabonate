@@ -991,7 +991,7 @@ Requires **two** independent credentials (FU-749):
   URL, `method` = `POST`, content prefix `colabonate-l1-upgrade:<pubkey>:`, freshness ≤ 60 s. The
   signing key must equal the claimed `nostrPubkey` (else `400 NOSTR_KEY_MISMATCH`).
 
-Relay verification (`verifyL1Ownership`, ADR-144 as relaxed by [ADR-379](decisions/379-nostr-profile-import-adopt-l1.md))
+Relay verification (`verifyL1Ownership`, ADR-144 as relaxed by ADR-379)
 requires both, on a relay:
 1. a validly-signed **Kind-0** profile authored by `nostrPubkey` — the `colabonate_pubkey` content
    binding is **not** required, so an imported, already-published profile is adopted as-is; and

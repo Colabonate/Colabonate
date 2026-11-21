@@ -78,6 +78,6 @@ await page.route('**/api/search*', (r) => r.fulfill(json({ hits: [], estimatedTo
 
 ## Related
 
-- [ADR-377](../decisions/377-ui-ux-test-coverage-core-user-flows.md) — decision record
-- [UI-UX-TEST-COVERAGE-PLAN.md](../plans/UI-UX-TEST-COVERAGE-PLAN.md) — gap analysis + phased rollout
+- ADR-377 — decision record
+- UI-UX-TEST-COVERAGE-PLAN.md — gap analysis + phased rollout
 - [PAYMENTS.md](PAYMENTS.md) — ticket/escrow error contract (branch on `code`, not text)

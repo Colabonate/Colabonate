@@ -3,7 +3,7 @@
 How `POST /api/tickets` (and other ticket-flow endpoints) report errors to the
 frontend. Stable contract — branch on `code`, not on `error` text.
 
-**Source:** [ADR-179](../decisions/179-nostr-login-wallet-bootstrap-ticket-error-reporting.md)
+**Source:** ADR-179
 (ADR-179 Fix A, 2026-06-18). Implemented in `apps/server/routes/tickets.ts`.
 
 ---
@@ -105,9 +105,9 @@ if (wallet.mode === 'NON_CUSTODIAL' && wallet.provider === 'NWC')   { /* POST /a
 /* else: custodial → POST /api/wallet/payments/send */
 ```
 
-**Hold-invoice caveat:** a genuine Lightning hold invoice (ADR-184's 3-phase escrow) doesn't resolve its payment promise until the receiver settles or cancels — true for `window.webln.sendPayment()` and NWC's `payInvoice()` alike. Because of this, `POST /api/tickets`'s hold invoice is still paid out-of-band (QR/copy in `TicketDetailView.tsx`) for every wallet type today; `WalletContext.sendPayment()`/`POST /api/wallet/nwc/pay` only handle **normal** (settle-on-receipt) invoices — release-payment, milestone-release, cooperation fund-escrow. Programmatic hold-invoice payment is tracked as [ADR-209](../decisions/209-hold-invoice-programmatic-wallet-payment.md) (proposed, not built).
+**Hold-invoice caveat:** a genuine Lightning hold invoice (ADR-184's 3-phase escrow) doesn't resolve its payment promise until the receiver settles or cancels — true for `window.webln.sendPayment()` and NWC's `payInvoice()` alike. Because of this, `POST /api/tickets`'s hold invoice is still paid out-of-band (QR/copy in `TicketDetailView.tsx`) for every wallet type today; `WalletContext.sendPayment()`/`POST /api/wallet/nwc/pay` only handle **normal** (settle-on-receipt) invoices — release-payment, milestone-release, cooperation fund-escrow. Programmatic hold-invoice payment is tracked as ADR-209 (proposed, not built).
 
-Full design: [ADR-208](../decisions/208-alby-nostr-wallet-connect-nwc-integration.md).
+Full design: ADR-208.
 
 ---
 

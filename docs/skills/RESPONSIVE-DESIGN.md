@@ -365,5 +365,5 @@ All collapsible/expandable sections default to **closed** on initial load:
 
 - [ADD-COMPONENT.md](./ADD-COMPONENT.md) – Component structure
 - [TOKEN-PIPELINE.md](./TOKEN-PIPELINE.md) – Spacing token references
-- [FIGMA-MCP.md](./FIGMA-MCP.md) – Step 4a: Responsive adjustment on import
+- FIGMA-MCP.md – Step 4a: Responsive adjustment on import
 - [DESIGN-SYSTEM.md](./DESIGN-SYSTEM.md) – Project overview

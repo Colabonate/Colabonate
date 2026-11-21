@@ -1,6 +1,6 @@
 # @col/icp-escrow-canister
 
-ICP Rust canister for Stufe 2/3 of the non-custodial escrow strategy. Design: [`docs/decisions/254-icp-escrow-canister-detail-design.md`](../../docs/decisions/254-icp-escrow-canister-detail-design.md), strategic decision: [`docs/decisions/253-non-custodial-p2p-escrow-strategy.md`](../../docs/decisions/253-non-custodial-p2p-escrow-strategy.md).
+ICP Rust canister for Stufe 2/3 of the non-custodial escrow strategy. Design: `docs/decisions/254-icp-escrow-canister-detail-design.md`, strategic decision: `docs/decisions/253-non-custodial-p2p-escrow-strategy.md`.
 
 This package is **not** part of the `npx pnpm` build graph — `package.json` exists only so `pnpm-workspace.yaml`'s `packages/*` glob doesn't choke on a directory with no `package.json`. The real toolchain is Rust + `dfx`, documented below.
 

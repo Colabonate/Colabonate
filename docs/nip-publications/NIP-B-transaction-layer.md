@@ -44,10 +44,10 @@ databases. Publishing them as Nostr events enables:
 
 | NIP | Role |
 |-----|------|
-| [NIP-01](01.md) | Base protocol, event structure, addressable events |
+| [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) | Base protocol, event structure, addressable events |
 | [NIP-A](NIP-A-service-marketplace-and-identity.md) | Offer discovery layer (30402); `offer` tag in 30407 references a 30402 event |
-| [NIP-57](57.md) | Lightning Zap receipts (9735); optionally referenced via `payment_hash` tag in 30408 |
-| [NIP-98](98.md) | HTTP Auth; SHOULD be used to authenticate server-side state transitions |
+| [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) | Lightning Zap receipts (9735); optionally referenced via `payment_hash` tag in 30408 |
+| [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) | HTTP Auth; SHOULD be used to authenticate server-side state transitions |
 
 ---
 
@@ -377,12 +377,12 @@ ID in both legacy and new kinds, clients SHOULD prefer the new kinds (30407/3040
 
 ## References
 
-- [NIP-01](01.md) — Base Nostr protocol
+- [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md) — Base Nostr protocol
 - [NIP-A](NIP-A-service-marketplace-and-identity.md) — Colabonate Marketplace Layer (30402, 30404, 30405, 30406)
-- [NIP-57](57.md) — Lightning Zaps
-- [NIP-98](98.md) — HTTP Auth
-- [docs/protocols/core/nostr-events.md](../protocols/core/nostr-events.md) — Full kind reference
-- [docs/protocols/workflows/buy-protocol.md](../protocols/workflows/buy-protocol.md) — Buy flow
-- [docs/protocols/core/escrow-protocol.md](../protocols/core/escrow-protocol.md) — Escrow details
-- [ADR-101](../decisions/101-nip-15-kind-conflict.md) — NIP-15 conflict resolution
-- [ADR-106](../decisions/106-nip-b-transaction-layer.md) — NIP-B implementation decisions
+- [NIP-57](https://github.com/nostr-protocol/nips/blob/master/57.md) — Lightning Zaps
+- [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) — HTTP Auth
+- [docs/protocols/core/nostr-events.md](https://github.com/Colabonate/Colabonate_Protocol/blob/main/docs/protocols/core/nostr-events.md) — Full kind reference
+- [docs/protocols/workflows/buy-protocol.md](https://github.com/Colabonate/Colabonate_Protocol/blob/main/docs/protocols/workflows/buy-protocol.md) — Buy flow
+- [docs/protocols/core/escrow-protocol.md](https://github.com/Colabonate/Colabonate_Protocol/blob/main/docs/protocols/core/escrow-protocol.md) — Escrow details
+- ADR-101 — NIP-15 conflict resolution
+- ADR-106 — NIP-B implementation decisions

@@ -340,6 +340,6 @@ import { Modal, ModalActions, ModalContent } from '@ds/ui';
 
 ## Referenzen
 
-- ADR: [docs/decisions/049-global-modal-system.md](../../docs/decisions/049-global-modal-system.md)
-- Memory: [memory/project_global_modal_system.md](../../memory/project_global_modal_system.md)
+- ADR: docs/decisions/049-global-modal-system.md
+- Memory: memory/project_global_modal_system.md
 - Types: [`modal.types.ts`](./modal.types.ts)

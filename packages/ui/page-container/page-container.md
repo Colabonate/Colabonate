@@ -137,6 +137,6 @@ Nutzt folgende CSS-Variablen:
 
 ## Siehe auch
 
-- [RESPONSIVE-DESIGN.md](../../docs/skills/RESPONSIVE-DESIGN.md)
-- [useBreakpoint Hook](../utils/index.ts)
+- RESPONSIVE-DESIGN.md
+- useBreakpoint Hook
 - [MainMenu](../main-menu/main-menu.tsx)

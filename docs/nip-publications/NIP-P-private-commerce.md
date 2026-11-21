@@ -157,7 +157,7 @@ Replicates a `kind:30415` milestone event as a DM. The marker `t=colabonate-mile
 
 ## Specification — Envelope `verdict` (mutual-arbiter dispute resolution)
 
-A mutually-accepted private arbiter (see [PROB-002 §A.2 Option A2](../problems/PROB-002-private-dispute-architecture.md)) returns a signed verdict as a DM. The verdict is the trigger for escrow release/cancel/split; clients MUST verify the signer is the `arbiterPubkey` both parties nominated before acting on it.
+A mutually-accepted private arbiter (see PROB-002 §A.2 Option A2) returns a signed verdict as a DM. The verdict is the trigger for escrow release/cancel/split; clients MUST verify the signer is the `arbiterPubkey` both parties nominated before acting on it.
 
 ```jsonc
 {
@@ -197,7 +197,7 @@ Private trades **do not** produce public reputation. Concretely:
 - A private ticket MUST NOT be the subject of a public `kind:30406` review.
 - A private cooperation/milestone MUST NOT emit `ColPoints`/reputation-score events.
 
-This is enforced structurally (the lifecycle never publishes the review event) and is a feature, not a limitation: the whole point of the private mode is to leave no public commerce graph. See [ADR-152](../decisions/152-private-trade-mode-via-nip17.md).
+This is enforced structurally (the lifecycle never publishes the review event) and is a feature, not a limitation: the whole point of the private mode is to leave no public commerce graph. See ADR-152.
 
 ---
 
@@ -232,7 +232,7 @@ A recommending client publishes `kind:31989` pointing at the handler's `31990:<p
 - **Encryption is mandatory.** A relay MUST never see plaintext envelopes. NIP-44 v2 + NIP-59 gift wrap are required; the legacy `kind:14` plaintext DM is permitted only for trusted server-side cache rows that never touch a relay.
 - **Gift-wrap randomization.** Per NIP-59, the gift wrap's `pubkey` is a fresh random key and `created_at` is randomized; relays cannot correlate sender, recipient, or timing.
 - **Verdict authenticity.** A `verdict` envelope is only actionable once the client independently verifies the signature on `verdictNostrEventId` and confirms the signer was mutually nominated for that ticket.
-- **No deletion guarantee.** A relay that received a gift wrap is under no obligation to honour a [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) deletion request. GDPR Art. 17 compliance therefore relies on **local** database erasure plus key-shredding (the gift-wrap content becomes permanently unreadable once the recipient discards their decryption key). See [ADR-156](../decisions/156-gdpr-private-offer-deletion-nip09.md).
+- **No deletion guarantee.** A relay that received a gift wrap is under no obligation to honour a [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) deletion request. GDPR Art. 17 compliance therefore relies on **local** database erasure plus key-shredding (the gift-wrap content becomes permanently unreadable once the recipient discards their decryption key). See ADR-156.
 - **Spam.** Because private offers are push DMs, clients SHOULD surface only offers from peers the user has a reason to expect (e.g. via a NIP-51 follow-set of trusted counterparties, or an opt-in "accept private offers from L2+" gate).
 
 ---
@@ -253,5 +253,5 @@ A recommending client publishes `kind:31989` pointing at the handler's `31990:<p
 - [NIP-89](https://github.com/nostr-protocol/nips/blob/master/89.md) — Recommended Application Handlers
 - [NIP-A](NIP-A-service-marketplace-and-identity.md) — public Freedom-of-Interaction commerce layer
 - [NIP-C](NIP-C-cooperation-layer.md) — public cooperation layer
-- [ADR-152](../decisions/152-private-trade-mode-via-nip17.md) — Private Trade Mode via NIP-17
-- [ADR-155](../decisions/155-cross-client-private-commerce-nip19-21-89.md) — Cross-client private commerce
+- ADR-152 — Private Trade Mode via NIP-17
+- ADR-155 — Cross-client private commerce

@@ -12,12 +12,12 @@ Freedom of Interaction Protocol (Identity & Commerce)
 
 ## Abstract
 
-This NIP defines the foundational event kinds for a "Freedom of Interaction" protocol over Nostr, designed to dismantle digital monopolies and enable sovereign, trust-minimized collaboration. Ranging from simple local commerce to complex, multi-party cooperations, it combines verifiable Human Identities (HID, L0-L3), trust-weighted reputation scoring, and Bitcoin/Lightning-native escrow mechanisms. It extends [NIP-99](99.md) (Classified Listings) with structured transaction semantics, addressable company profiles, and soulbound credentials, establishing the base infrastructure for self-organized economic ecosystems.
+This NIP defines the foundational event kinds for a "Freedom of Interaction" protocol over Nostr, designed to dismantle digital monopolies and enable sovereign, trust-minimized collaboration. Ranging from simple local commerce to complex, multi-party cooperations, it combines verifiable Human Identities (HID, L0-L3), trust-weighted reputation scoring, and Bitcoin/Lightning-native escrow mechanisms. It extends [NIP-99](https://github.com/nostr-protocol/nips/blob/master/99.md) (Classified Listings) with structured transaction semantics, addressable company profiles, and soulbound credentials, establishing the base infrastructure for self-organized economic ecosystems.
 
 **Key additions over NIP-99:**
 
 - Service and offline-delivery offers (not just physical goods)
-- Multi-level identity verification (L0–L3) via [NIP-98](98.md) HTTP auth
+- Multi-level identity verification (L0–L3) via [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md) HTTP auth
 - Escrow-aware offers with milestone-based Lightning release
 - Identity-level-weighted reputation scoring
 - Company profiles with UNSPSC industry classification
@@ -28,9 +28,9 @@ This NIP defines the foundational event kinds for a "Freedom of Interaction" pro
 
 NIP-99 defines a general classified listing (kind `30402`). This NIP extends it with structured tags for service marketplaces requiring trust, escrow, and identity. Three new kinds are introduced for company profiles (30404), verifiable credentials (30405), and reputation reviews (30406).
 
-Unlike [NIP-15](15.md) (Stall/Product model), this NIP targets **service offers** with asynchronous delivery, milestone-based escrow release, and trust layers — use cases NIP-15 does not cover.
+Unlike [NIP-15](https://github.com/nostr-protocol/nips/blob/master/15.md) (Stall/Product model), this NIP targets **service offers** with asynchronous delivery, milestone-based escrow release, and trust layers — use cases NIP-15 does not cover.
 
-Unlike [NIP-69](69.md) (P2P Order events, kind `38383`), this NIP covers the **offer publication and identity layer**, not the order negotiation flow.
+Unlike [NIP-69](https://github.com/nostr-protocol/nips/blob/master/69.md) (P2P Order events, kind `38383`), this NIP covers the **offer publication and identity layer**, not the order negotiation flow.
 
 ---
 
@@ -47,7 +47,7 @@ Unlike [NIP-69](69.md) (P2P Order events, kind `38383`), this NIP covers the **o
 
 ## Kind 30402 – Service Offer (extends NIP-99)
 
-All [NIP-99](99.md) fields and tags MUST be supported. Clients not implementing this NIP SHOULD still render kind `30402` events using NIP-99 rules.
+All [NIP-99](https://github.com/nostr-protocol/nips/blob/master/99.md) fields and tags MUST be supported. Clients not implementing this NIP SHOULD still render kind `30402` events using NIP-99 rules.
 
 ### Additional Tags
 
@@ -191,7 +191,7 @@ A non-transferable (soulbound) credential bound to the signing `pubkey`. Signals
 
 ### NIP-98 Authorization Requirement
 
-For `identity_level_1` credentials, the event MUST be produced after a [NIP-98](98.md)-authorized HTTP request to the credential issuance endpoint. The server verifies that the `Authorization: Nostr` header pubkey matches the event `pubkey`.
+For `identity_level_1` credentials, the event MUST be produced after a [NIP-98](https://github.com/nostr-protocol/nips/blob/master/98.md)-authorized HTTP request to the credential issuance endpoint. The server verifies that the `Authorization: Nostr` header pubkey matches the event `pubkey`.
 
 ### Soulbound Guarantee
 
@@ -244,7 +244,7 @@ A permanent post-transaction review. Reviews are identity-level-weighted to redu
 ### Validation Rules
 
 - The referenced ticket MUST have reached a completed state before a review is published
-- Reviews are permanent and MUST NOT be deleted via [NIP-09](09.md) Kind 5 events
+- Reviews are permanent and MUST NOT be deleted via [NIP-09](https://github.com/nostr-protocol/nips/blob/master/09.md) Kind 5 events
 - Reviews without a verifiable prior transaction receive weight 0.0 in aggregation
 
 ### Example Event
@@ -274,9 +274,9 @@ A permanent post-transaction review. Reviews are identity-level-weighted to redu
 All kinds defined in this NIP:
 
 - SHOULD be stored by any relay that accepts them
-- MAY be queried by `pubkey`, `kind`, and `d` tag per [NIP-33](33.md)
+- MAY be queried by `pubkey`, `kind`, and `d` tag per [NIP-33](https://github.com/nostr-protocol/nips/blob/master/33.md)
 - SHOULD NOT require authentication or payment to store
-- MUST support parameterized replaceable event semantics ([NIP-33](33.md))
+- MUST support parameterized replaceable event semantics ([NIP-33](https://github.com/nostr-protocol/nips/blob/master/33.md))
 
 ---
 

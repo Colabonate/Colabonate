@@ -1,6 +1,6 @@
 # @col/icp-workspace-canister
 
-ICP Rust canister for agent-workspace execution. Design: [`docs/decisions/311-workspace-execution-icp-canisters.md`](../../docs/decisions/311-workspace-execution-icp-canisters.md); server-side lifecycle half: `apps/server/routes/workspaces.ts` + `apps/server/services/workspace-lifecycle.ts`; server wiring via `@dfinity/agent` (FU-432, done 2026-08-19): `apps/server/services/workspace-canister-client.ts`.
+ICP Rust canister for agent-workspace execution. Design: `docs/decisions/311-workspace-execution-icp-canisters.md`; server-side lifecycle half: `apps/server/routes/workspaces.ts` + `apps/server/services/workspace-lifecycle.ts`; server wiring via `@dfinity/agent` (FU-432, done 2026-08-19): `apps/server/services/workspace-canister-client.ts`.
 
 This package is **not** part of the `npx pnpm` build graph — `package.json` exists only so `pnpm-workspace.yaml`'s `packages/*` glob doesn't choke on a directory with no `package.json`. The real toolchain is Rust + `dfx`, documented below.
 
@@ -42,7 +42,7 @@ Deliberately **not** implemented — nothing here is a silent no-op or faked suc
 ## Prerequisites
 
 - Rust (`rustup`, stable toolchain) + `wasm32-unknown-unknown` target: `rustup target add wasm32-unknown-unknown`
-- **`icp`** (ICP CLI) — see [ADR-346](../../docs/decisions/346-icp-cli-migration-dfx-to-icp.md). Install: `curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dfinity/icp-cli/releases/latest/download/icp-cli-installer.sh | sh`. (`dfx` is deprecated by DFINITY upstream — not used here anymore.)
+- **`icp`** (ICP CLI) — see ADR-346. Install: `curl --proto '=https' --tlsv1.2 -LsSf https://github.com/dfinity/icp-cli/releases/latest/download/icp-cli-installer.sh | sh`. (`dfx` is deprecated by DFINITY upstream — not used here anymore.)
 - `candid-extractor` (regenerates `icp_workspace_canister.did` from the built wasm — only needed after changing the public candid-facing types/signatures): `cargo install candid-extractor`
 - `clang` (native build dependency of the `bitcoin`/`secp256k1` crates used in `src/sig.rs`) — e.g. `apt install clang` on Debian/Ubuntu.
 
