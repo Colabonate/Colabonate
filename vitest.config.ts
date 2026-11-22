@@ -19,7 +19,6 @@ export default defineConfig({
       // alongside the ADR-240 LNURL-pay + ADR-381 prod-guard route tests).
       'apps/server/routes/**/*.test.ts',
       'apps/mcp-server/src/**/*.test.ts',
-      'apps/canvas-agent-runner/src/**/*.test.ts',
       'apps/colabonate-app/src/lib/**/*.test.ts',
       'apps/colabonate-app/src/hooks/**/*.test.ts',
       'apps/colabonate-app/src/config/**/*.test.ts',

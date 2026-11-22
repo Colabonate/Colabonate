@@ -17,7 +17,7 @@ import { createServer } from 'node:http'
 import type { AddressInfo } from 'node:net'
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:4098'
-const LN_ADDRESS = process.env.LN_ADDRESS || 'LN_ADDRESS_REDACTED'
+const LN_ADDRESS = process.env.LN_ADDRESS || 'platform@example.com'
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }) })
 
 let pass = 0

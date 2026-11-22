@@ -33,7 +33,7 @@
 .EXAMPLE
   powershell -File scripts/mobile/build-android-local.ps1
 .EXAMPLE
-  powershell -File scripts/mobile/build-android-local.ps1 -ApiBaseUrl https://colabonate.app -LnAddress LN_ADDRESS_REDACTED
+  powershell -File scripts/mobile/build-android-local.ps1 -ApiBaseUrl https://colabonate.app -LnAddress platform@example.com
 #>
 [CmdletBinding()]
 param(

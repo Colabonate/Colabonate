@@ -7,14 +7,14 @@ import { pickLnurlAuthAddress } from './lnurl-auth'
 
 describe('pickLnurlAuthAddress', () => {
   it('persists the wallet-provided address', () => {
-    expect(pickLnurlAuthAddress('LN_ADDRESS_REDACTED', null)).toEqual({
-      lnAddress: 'LN_ADDRESS_REDACTED',
+    expect(pickLnurlAuthAddress('platform@example.com', null)).toEqual({
+      lnAddress: 'platform@example.com',
       changed: true,
     })
   })
 
   it('treats an unchanged address as unchanged', () => {
-    expect(pickLnurlAuthAddress('LN_ADDRESS_REDACTED', 'LN_ADDRESS_REDACTED').changed).toBe(false)
+    expect(pickLnurlAuthAddress('platform@example.com', 'platform@example.com').changed).toBe(false)
   })
 
   it('clears a synthetic placeholder when the login provides no usable address', () => {

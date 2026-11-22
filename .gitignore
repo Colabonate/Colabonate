@@ -108,8 +108,6 @@ apps/**/*.d.ts.map
 !apps/colabonate-app/public/*.js
 !apps/colabonate-app/src/types/webln.d.ts
 !apps/colabonate-app/src/vite-env.d.ts
-!apps/playground/src/global.d.ts
-!apps/playground/src/vite-env.d.ts
 
 # Root tsc outputs (tracked .js files excepted below)
 /*.js

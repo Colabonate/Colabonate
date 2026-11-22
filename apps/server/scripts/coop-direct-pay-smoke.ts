@@ -14,7 +14,7 @@ async function main() {
   const tC = randomBytes(32).toString('hex')
   const tI = randomBytes(32).toString('hex'), tP = randomBytes(32).toString('hex')
   await prisma.user.create({ data: { pubkey: init, identityLevel: 2 } })
-  await prisma.user.create({ data: { pubkey: partner, identityLevel: 2, lnAddress: 'LN_ADDRESS_REDACTED' } })
+  await prisma.user.create({ data: { pubkey: partner, identityLevel: 2, lnAddress: 'platform@example.com' } })
   await prisma.user.create({ data: { pubkey: noRail, identityLevel: 2 } })
   const cashuUser = await prisma.user.create({ data: { pubkey: cashuP, identityLevel: 2 } })
   await prisma.wallet.create({ data: { userId: cashuUser.id, provider: 'CASHU', mode: 'NON_CUSTODIAL', cashuReceivePubkey: randomBytes(32).toString('hex'), cashuReceiveMintUrl: 'https://mint.minibits.cash/Bitcoin' } })

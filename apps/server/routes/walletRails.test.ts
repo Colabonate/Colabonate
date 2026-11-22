@@ -256,14 +256,14 @@ describe('PUT /api/wallet/ln-address — EXTERNAL needs a routable address', () 
     const prisma = makePrisma()
     const res = await request(makeApp(prisma))
       .put('/api/wallet/ln-address')
-      .send({ handle: 'dezooyi', mode: 'EXTERNAL', address: 'LN_ADDRESS_REDACTED' })
+      .send({ handle: 'dezooyi', mode: 'EXTERNAL', address: 'platform@example.com' })
 
     expect(res.status).toBe(200)
     const arg = prisma.user.update.mock.calls[0][0] as { data: Record<string, unknown> }
     expect(arg.data).toMatchObject({
       lnAddressHandle: 'dezooyi',
       lnAddressMode: 'EXTERNAL',
-      lnAddress: 'LN_ADDRESS_REDACTED',
+      lnAddress: 'platform@example.com',
     })
   })
 

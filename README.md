@@ -122,8 +122,6 @@ apps/
   colabonate-app/   web app
   server/           reference server (Express + Prisma)
   mcp-server/       MCP server for agent access
-  playground/       design-system showcase
-  canvas-agent-runner/  agent-canvas runner
 packages/
   ui/               headless design-system components
   tokens/           design tokens

@@ -24,8 +24,6 @@ apps/
   colabonate-app/      web app (React + Vite) — routes, components, pages
   server/              reference server (Express + Prisma + PostgreSQL)
   mcp-server/          MCP server for agent access to the marketplace
-  playground/          design-system showcase
-  canvas-agent-runner/ agent-canvas runner
 packages/
   ui/                  headless design-system components (no state, no logic)
   tokens/              design tokens (tokens.json → css/tokens.css)
